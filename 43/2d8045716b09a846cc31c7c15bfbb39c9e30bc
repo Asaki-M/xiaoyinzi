@@ -1,0 +1,21 @@
+gradlew
+  s_9bda75da1ca091::t_9c732564faf1a6 1-252
+gradlew.bat
+  s_9bda75da1ca091::t_2751104f193b2b 1-94
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "432d8045716b09a846cc31c7c15bfbb39c9e30bc",
+  "prompts": {},
+  "sessions": {
+    "s_9bda75da1ca091": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0567a-51d3-72d3-b377-ae376058c5e1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
