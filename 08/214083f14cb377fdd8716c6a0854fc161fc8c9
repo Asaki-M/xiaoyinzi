@@ -1,0 +1,59 @@
+app/src/main/java/com/xiaoyinzi/player/casting/LyricsCastManager.kt
+  s_9bda75da1ca091::t_521a2d57118663 13,230,244,300-301
+  s_9bda75da1ca091::t_4e59fe83b7668e 91-92,94,98-102,370-380,402
+  s_9bda75da1ca091::t_31df9766d3ec71 43
+  s_9bda75da1ca091::t_a05b0a3cadbc17 1-12,14-42,44-90,93,95-97,103-229,231-243,245-299,302-369,381-401,403-432
+app/src/main/java/com/xiaoyinzi/player/casting/CastProtocol.kt
+  s_9bda75da1ca091::t_31df9766d3ec71 4,10-14
+  s_9bda75da1ca091::t_a05b0a3cadbc17 1-3,5-9,15-89
+app/src/main/java/com/xiaoyinzi/player/playback/PlayerConnection.kt
+  s_9bda75da1ca091::t_ba53c5e749dccb 5,13,147-151
+app/src/main/AndroidManifest.xml
+  s_9bda75da1ca091::t_6f875dd2c40842 7-8
+app/src/main/java/com/xiaoyinzi/player/casting/MacServiceDiscovery.kt
+  s_9bda75da1ca091::t_a05b0a3cadbc17 1-15,18-23,25-29,33-54,56-61,63-66,68-69,74-79,81-128
+  s_9bda75da1ca091::t_4e59fe83b7668e 16-17,24,30-32,55,62,67,70-73,80
+app/build.gradle.kts
+  s_9bda75da1ca091::t_6f875dd2c40842 5,17-18,54
+README.md
+  s_9bda75da1ca091::t_df567a01330496 3,16-17,19,67-72,77
+app/src/main/java/com/xiaoyinzi/player/MainViewModel.kt
+  s_9bda75da1ca091::t_ba53c5e749dccb 10,48,135-145
+  s_9bda75da1ca091::t_8ac14bd4fd25d5 146
+mac-lyrics-protocol.md
+  s_9bda75da1ca091::t_df567a01330496 1-168
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_9bda75da1ca091::t_b67f21d43d6f36 33,95,463,487-502
+  s_9bda75da1ca091::t_9ce5f9328a9689 37-39,105-107,117,120,156-160,193-211,227-228,239-240,283-284,329-341
+  s_9bda75da1ca091::t_93009c8fb1c0b4 390-462,464-486,503-564
+  s_9bda75da1ca091::t_c576862bf5a736 565
+kotlin-learning.md
+  s_9bda75da1ca091::t_df567a01330496 17,20,35,493,496,498-535,540,554,586,598,600,626,636
+  s_9bda75da1ca091::t_74ccf7910b60d1 1-16,18-19,21-34,36-492,494-495,497,536-539,541-553,555-585,587-597,599,601-625,627-635
+build.gradle.kts
+  s_9bda75da1ca091::t_6f875dd2c40842 5
+app/src/main/java/com/xiaoyinzi/player/XiaoYinZiApplication.kt
+  s_9bda75da1ca091::t_ba53c5e749dccb 5,18
+app/src/test/java/com/xiaoyinzi/player/casting/CastProtocolTest.kt
+  s_9bda75da1ca091::t_df567a01330496 1-11,13-35,37-51
+  s_9bda75da1ca091::t_31df9766d3ec71 12
+  s_9bda75da1ca091::t_2b1208ef5af7e0 36
+app/src/main/java/com/xiaoyinzi/player/playback/PlaybackService.kt
+  s_9bda75da1ca091::t_ba53c5e749dccb 11,26-27,42
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "08214083f14cb377fdd8716c6a0854fc161fc8c9",
+  "prompts": {},
+  "sessions": {
+    "s_9bda75da1ca091": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0567a-51d3-72d3-b377-ae376058c5e1",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
