@@ -2,6 +2,7 @@ package com.xiaoyinzi.player.playback
 
 import android.content.ComponentName
 import android.content.Context
+import android.os.Bundle
 import androidx.core.content.ContextCompat
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
@@ -9,6 +10,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import com.xiaoyinzi.player.data.TrackEntity
+import com.xiaoyinzi.player.casting.MEDIA_EXTRA_LYRIC_URI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -142,6 +144,11 @@ class PlayerConnection(context: Context) : AutoCloseable {
                 .setTitle(title)
                 .setArtist(artist)
                 .setAlbumTitle(album)
+                .setExtras(
+                    Bundle().apply {
+                        lyricUri?.let { putString(MEDIA_EXTRA_LYRIC_URI, it) }
+                    },
+                )
                 .build(),
         )
         .build()

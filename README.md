@@ -1,6 +1,6 @@
 # 小银子
 
-一个完全离线的 Android 本地音乐播放器，使用 Kotlin、Jetpack Compose 与 AndroidX Media3。
+一个以本地播放为核心的 Android 音乐播放器，使用 Kotlin、Jetpack Compose 与 AndroidX Media3。
 
 ## 已实现
 
@@ -13,8 +13,10 @@
 - 顺序队列、随机播放、列表循环、单曲循环
 - 同目录、同文件名 `.lrcx` 歌词匹配
 - 歌词时间轴高亮，点按歌词跳转播放位置
+- 同一局域网自动发现 Mac 菜单栏应用，实时同步歌曲、进度与 `.lrcx` 歌词
+- 首次连接使用 6 位码配对，支持记住设备、断线自动重连
 
-所有目录、歌曲索引和分组信息只保存在设备本地，没有服务端和联网权限。
+目录、歌曲索引、分组和歌词都只保存在设备本地，没有云端服务。只有用户打开“Mac 实时歌词”时，应用才会在当前局域网内发现并连接 Mac；不会上传音乐文件。
 
 ## 银临粉丝视觉
 
@@ -62,10 +64,17 @@ Music/
 
 首次打开会请求通知权限；点击右上角目录图标选择音乐目录。应用通过 Storage Access Framework 获取目录权限，不需要“所有文件访问”权限。
 
+## Mac 实时歌词
+
+点击资料库右上角的投屏图标即可搜索同一局域网中的 Mac。Android 端以本机 `.lrcx` 为唯一歌词源，Mac 只接收歌曲名、歌词和播放位置，不需要另外准备同名歌词文件。
+
+当前仓库只实现 Android 端，Mac 菜单栏接收端可按 [Mac 实时歌词协议](mac-lyrics-protocol.md) 开发。没有运行 Mac 接收端时，搜索不到设备属于正常现象。
+
 ## 工程结构
 
 ```text
 app/src/main/java/com/xiaoyinzi/player/
+├── casting/    # Bonjour 发现、配对和实时歌词协议
 ├── data/       # Room 实体、DAO 与数据库
 ├── library/    # 目录扫描和资料库业务
 ├── lyrics/     # .lrcx 解析与时间轴模型

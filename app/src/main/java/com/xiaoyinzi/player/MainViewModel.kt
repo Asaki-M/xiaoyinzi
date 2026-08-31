@@ -7,6 +7,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.xiaoyinzi.player.data.GroupSummary
 import com.xiaoyinzi.player.data.TrackEntity
+import com.xiaoyinzi.player.casting.CastDevice
 import com.xiaoyinzi.player.library.LibraryRepository
 import com.xiaoyinzi.player.library.LibraryScanner
 import com.xiaoyinzi.player.lyrics.LrcxParser
@@ -44,6 +45,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val message = MutableStateFlow<String?>(null)
     val player = PlayerConnection(application)
     val playerState = player.state
+    val castState = app.lyricsCastManager.state
 
     private val repositorySnapshot = repository.tracks
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -129,6 +131,18 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun clearMessage() {
         message.value = null
     }
+
+    fun startCastDiscovery() = app.lyricsCastManager.startDiscovery()
+
+    fun stopCastDiscovery() = app.lyricsCastManager.stopDiscovery()
+
+    fun connectCastDevice(device: CastDevice) = app.lyricsCastManager.connect(device)
+
+    fun disconnectCast() = app.lyricsCastManager.disconnect()
+
+    fun submitCastPairingCode(code: String) = app.lyricsCastManager.submitPairingCode(code)
+
+    fun forgetCastPairing() = app.lyricsCastManager.forgetPairing()
 
     private fun scan(uri: Uri) {
         viewModelScope.launch {

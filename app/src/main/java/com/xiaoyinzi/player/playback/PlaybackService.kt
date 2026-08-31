@@ -8,6 +8,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import com.xiaoyinzi.player.MainActivity
+import com.xiaoyinzi.player.XiaoYinZiApplication
 
 class PlaybackService : MediaSessionService() {
     private var mediaSession: MediaSession? = null
@@ -22,6 +23,8 @@ class PlaybackService : MediaSessionService() {
             .setAudioAttributes(audioAttributes, true)
             .setHandleAudioBecomingNoisy(true)
             .build()
+        val app = application as XiaoYinZiApplication
+        app.lyricsCastManager.bindPlayer(player, app.lyricParser)
         val sessionActivity = PendingIntent.getActivity(
             this,
             0,
@@ -36,6 +39,7 @@ class PlaybackService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
     override fun onDestroy() {
+        (application as XiaoYinZiApplication).lyricsCastManager.unbindPlayer()
         mediaSession?.run {
             player.release()
             release()

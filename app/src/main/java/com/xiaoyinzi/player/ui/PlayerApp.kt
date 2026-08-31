@@ -30,9 +30,13 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Cast
+import androidx.compose.material.icons.rounded.CastConnected
+import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -88,6 +92,7 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -97,6 +102,9 @@ import com.xiaoyinzi.player.LibraryUiState
 import com.xiaoyinzi.player.MainViewModel
 import com.xiaoyinzi.player.data.GroupSummary
 import com.xiaoyinzi.player.data.TrackEntity
+import com.xiaoyinzi.player.casting.CastConnectionStatus
+import com.xiaoyinzi.player.casting.CastDevice
+import com.xiaoyinzi.player.casting.CastUiState
 import com.xiaoyinzi.player.lyrics.LyricLine
 import com.xiaoyinzi.player.playback.PlayerUiState
 
@@ -106,8 +114,10 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
     val library by viewModel.uiState.collectAsStateWithLifecycle()
     val player by viewModel.playerState.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
+    val cast by viewModel.castState.collectAsStateWithLifecycle()
     var showCreateGroup by remember { mutableStateOf(false) }
     var showNowPlaying by remember { mutableStateOf(false) }
+    var showCastPanel by remember { mutableStateOf(false) }
     val snackbarHost = remember { SnackbarHostState() }
 
     LaunchedEffect(library.message) {
@@ -143,6 +153,11 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
             onPlay = viewModel::play,
             onAddToGroup = viewModel::addTrackToGroup,
             onRemoveFromGroup = viewModel::removeTrackFromSelectedGroup,
+            castConnected = cast.connectionStatus == CastConnectionStatus.CONNECTED,
+            onOpenCast = {
+                viewModel.startCastDiscovery()
+                showCastPanel = true
+            },
         )
     }
 
@@ -175,6 +190,25 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
             )
         }
     }
+
+    if (showCastPanel) {
+        ModalBottomSheet(
+            onDismissRequest = {
+                showCastPanel = false
+                if (!cast.enabled) viewModel.stopCastDiscovery()
+            },
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            CastPanel(
+                state = cast,
+                onRefresh = viewModel::startCastDiscovery,
+                onConnect = viewModel::connectCastDevice,
+                onDisconnect = viewModel::disconnectCast,
+                onPair = viewModel::submitCastPairingCode,
+                onForgetPairing = viewModel::forgetCastPairing,
+            )
+        }
+    }
 }
 
 @Composable
@@ -190,6 +224,8 @@ private fun LibraryScreen(
     onPlay: (TrackEntity) -> Unit,
     onAddToGroup: (String, Long) -> Unit,
     onRemoveFromGroup: (String) -> Unit,
+    castConnected: Boolean,
+    onOpenCast: () -> Unit,
 ) {
     Column(
         modifier = modifier
@@ -200,6 +236,8 @@ private fun LibraryScreen(
             state = state,
             onChooseFolder = onChooseFolder,
             onRescan = onRescan,
+            castConnected = castConnected,
+            onOpenCast = onOpenCast,
         )
 
         GroupSelector(
@@ -242,6 +280,8 @@ private fun LibraryHeader(
     state: LibraryUiState,
     onChooseFolder: () -> Unit,
     onRescan: () -> Unit,
+    castConnected: Boolean,
+    onOpenCast: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -286,6 +326,19 @@ private fun LibraryHeader(
                 .align(Alignment.TopEnd)
                 .padding(top = 8.dp, end = 8.dp),
         ) {
+            IconButton(
+                onClick = onOpenCast,
+                modifier = Modifier
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.surface.copy(alpha = .78f)),
+            ) {
+                Icon(
+                    if (castConnected) Icons.Rounded.CastConnected else Icons.Rounded.Cast,
+                    contentDescription = "Mac 实时歌词",
+                    tint = if (castConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            Spacer(Modifier.size(6.dp))
             IconButton(
                 onClick = onChooseFolder,
                 modifier = Modifier
@@ -332,6 +385,182 @@ private fun HeaderFireflies(modifier: Modifier = Modifier) {
             drawCircle(firefly.copy(alpha = glow * .13f), 10.dp.toPx(), point)
         }
     }
+}
+
+@Composable
+private fun CastPanel(
+    state: CastUiState,
+    onRefresh: () -> Unit,
+    onConnect: (CastDevice) -> Unit,
+    onDisconnect: () -> Unit,
+    onPair: (String) -> Unit,
+    onForgetPairing: () -> Unit,
+) {
+    var pairingCode by remember(state.pairingRequired) { mutableStateOf("") }
+    val statusColor by animateColorAsState(
+        targetValue = when (state.connectionStatus) {
+            CastConnectionStatus.CONNECTED -> MaterialTheme.colorScheme.primary
+            CastConnectionStatus.ERROR -> MaterialTheme.colorScheme.error
+            CastConnectionStatus.PAIRING -> MaterialTheme.colorScheme.secondary
+            else -> MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "cast status",
+    )
+
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .padding(horizontal = 24.dp, vertical = 8.dp),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Column(Modifier.weight(1f)) {
+                Text("Mac 实时歌词", style = MaterialTheme.typography.headlineSmall)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    castStatusText(state),
+                    color = statusColor,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
+            if (
+                state.discovering ||
+                state.connectionStatus == CastConnectionStatus.CONNECTING ||
+                state.connectionStatus == CastConnectionStatus.SEARCHING
+            ) {
+                CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
+            } else {
+                Icon(
+                    if (state.connectionStatus == CastConnectionStatus.CONNECTED) Icons.Rounded.CastConnected else Icons.Rounded.Cast,
+                    contentDescription = null,
+                    tint = statusColor,
+                    modifier = Modifier.size(28.dp),
+                )
+            }
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Text(
+            "Mac 与手机连接同一局域网后，会在这里自动出现。歌词来自当前手机中的 .lrcx 文件。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+
+        if (state.pairingRequired) {
+            Spacer(Modifier.height(20.dp))
+            Text("首次配对", style = MaterialTheme.typography.titleMedium)
+            Spacer(Modifier.height(8.dp))
+            Row(verticalAlignment = Alignment.CenterVertically) {
+                TextField(
+                    value = pairingCode,
+                    onValueChange = { pairingCode = it.filter(Char::isDigit).take(6) },
+                    modifier = Modifier.weight(1f),
+                    placeholder = { Text("Mac 上的 6 位数字") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.NumberPassword),
+                    colors = TextFieldDefaults.colors(
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    ),
+                )
+                Spacer(Modifier.size(10.dp))
+                Button(onClick = { onPair(pairingCode) }, enabled = pairingCode.length == 6) {
+                    Text("配对")
+                }
+            }
+        }
+
+        Spacer(Modifier.height(22.dp))
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text("发现的设备", style = MaterialTheme.typography.labelMedium)
+            TextButton(onClick = onRefresh) { Text("重新搜索") }
+        }
+
+        if (state.devices.isEmpty()) {
+            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp)) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(Icons.Rounded.Computer, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                    Spacer(Modifier.size(12.dp))
+                    Column {
+                        Text("还没有发现 Mac", style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "请先启动 Mac 菜单栏应用",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                }
+                if (state.enabled) {
+                    Spacer(Modifier.height(12.dp))
+                    OutlinedButton(onClick = onDisconnect) { Text("停止连接") }
+                }
+            }
+        } else {
+            state.devices.forEach { device ->
+                val selected = device.name == state.selectedDeviceName
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Icon(
+                        if (selected && state.connectionStatus == CastConnectionStatus.CONNECTED) Icons.Rounded.CastConnected else Icons.Rounded.Computer,
+                        contentDescription = null,
+                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text(device.name, style = MaterialTheme.typography.titleMedium)
+                        Text(
+                            "${device.host}:${device.port}",
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                    if (selected && state.enabled) {
+                        TextButton(onClick = onDisconnect) { Text("断开") }
+                    } else {
+                        OutlinedButton(onClick = { onConnect(device) }) { Text("连接") }
+                    }
+                }
+                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+            }
+        }
+
+        state.message?.let { currentMessage ->
+            Spacer(Modifier.height(12.dp))
+            Text(currentMessage, color = statusColor, style = MaterialTheme.typography.bodyMedium)
+        }
+
+        if (state.enabled) {
+            Spacer(Modifier.height(10.dp))
+            TextButton(onClick = onForgetPairing) { Text("清除配对并重新连接") }
+        }
+
+        Spacer(Modifier.height(18.dp))
+        Text(
+            "仅向已连接的 Mac 发送歌曲名、播放位置和歌词，不发送音乐文件。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+        )
+        Spacer(Modifier.height(12.dp))
+    }
+}
+
+private fun castStatusText(state: CastUiState): String = when (state.connectionStatus) {
+    CastConnectionStatus.OFF -> "未开启"
+    CastConnectionStatus.SEARCHING -> "正在寻找同一网络中的 Mac"
+    CastConnectionStatus.CONNECTING -> "正在连接 ${state.selectedDeviceName.orEmpty()}"
+    CastConnectionStatus.PAIRING -> "等待配对"
+    CastConnectionStatus.CONNECTED -> "已连接 ${state.selectedDeviceName.orEmpty()}"
+    CastConnectionStatus.ERROR -> "连接中断，正在自动重试"
 }
 
 @Composable
