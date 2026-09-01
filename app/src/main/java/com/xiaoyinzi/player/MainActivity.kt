@@ -2,6 +2,7 @@ package com.xiaoyinzi.player
 
 import android.Manifest
 import android.content.pm.PackageManager
+import android.media.AudioManager
 import android.os.Build
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -19,6 +20,7 @@ class MainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        volumeControlStream = AudioManager.STREAM_MUSIC
         setContent {
             XiaoYinZiTheme {
                 val folderPicker = rememberLauncherForActivityResult(
@@ -49,4 +51,3 @@ class MainActivity : ComponentActivity() {
         }
     }
 }
-

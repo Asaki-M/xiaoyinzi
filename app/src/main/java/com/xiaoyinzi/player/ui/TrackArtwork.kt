@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import com.xiaoyinzi.player.library.TrackArtworkLoader
 
@@ -30,14 +31,7 @@ internal fun TrackArtwork(
     loader: TrackArtworkLoader,
     modifier: Modifier = Modifier,
 ) {
-    val targetSizePx = with(LocalDensity.current) { 56.dp.roundToPx() }
-    val artwork by produceState<android.graphics.Bitmap?>(
-        initialValue = null,
-        key1 = trackUri,
-        key2 = targetSizePx,
-    ) {
-        value = loader.load(trackUri, targetSizePx)
-    }
+    val artwork = rememberTrackArtwork(trackUri, loader, 56.dp)
 
     Box(
         modifier = modifier
@@ -45,10 +39,9 @@ internal fun TrackArtwork(
             .background(MaterialTheme.colorScheme.surfaceVariant),
         contentAlignment = Alignment.Center,
     ) {
-        val currentArtwork = artwork
-        if (currentArtwork != null) {
+        if (artwork != null) {
             Image(
-                bitmap = currentArtwork.asImageBitmap(),
+                bitmap = artwork.asImageBitmap(),
                 contentDescription = null,
                 modifier = Modifier.matchParentSize(),
                 contentScale = ContentScale.Crop,
@@ -77,4 +70,21 @@ internal fun TrackArtwork(
             }
         }
     }
+}
+
+@Composable
+internal fun rememberTrackArtwork(
+    trackUri: String?,
+    loader: TrackArtworkLoader,
+    targetSize: Dp,
+): android.graphics.Bitmap? {
+    val targetSizePx = with(LocalDensity.current) { targetSize.roundToPx() }
+    val artwork by produceState<android.graphics.Bitmap?>(
+        initialValue = null,
+        key1 = trackUri,
+        key2 = targetSizePx,
+    ) {
+        value = trackUri?.let { loader.load(it, targetSizePx) }
+    }
+    return artwork
 }

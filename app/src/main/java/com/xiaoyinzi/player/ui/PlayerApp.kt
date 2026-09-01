@@ -17,6 +17,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -40,6 +41,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Cast
@@ -98,8 +100,9 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -109,7 +112,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.media3.common.Player
 import com.xiaoyinzi.player.R
 import com.xiaoyinzi.player.LibraryUiState
 import com.xiaoyinzi.player.MainViewModel
@@ -120,6 +122,7 @@ import com.xiaoyinzi.player.casting.CastDevice
 import com.xiaoyinzi.player.casting.CastUiState
 import com.xiaoyinzi.player.lyrics.LyricLine
 import com.xiaoyinzi.player.library.TrackArtworkLoader
+import com.xiaoyinzi.player.playback.PlaybackMode
 import com.xiaoyinzi.player.playback.PlayerUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -194,13 +197,13 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
         NowPlayingScreen(
             state = player,
             lyrics = lyrics,
+            artworkLoader = artworkLoader,
             onClose = { showNowPlaying = false },
             onTogglePlay = viewModel.player::togglePlayPause,
             onPrevious = viewModel.player::seekPrevious,
             onNext = viewModel.player::seekNext,
             onSeek = viewModel.player::seekTo,
-            onShuffle = viewModel.player::toggleShuffle,
-            onRepeat = viewModel.player::cycleRepeatMode,
+            onCyclePlaybackMode = viewModel.player::cyclePlaybackMode,
         )
     }
 
@@ -459,7 +462,7 @@ private fun CastPanel(
 
         Spacer(Modifier.height(18.dp))
         Text(
-            "Mac 与手机连接同一局域网后，会在这里自动出现。歌词来自当前手机中的 .lrcx 文件。",
+            "Mac 与手机连接同一局域网后，会在这里自动出现。歌词来自当前手机中的 .lrc / .lrcx 文件。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
         )
@@ -693,7 +696,7 @@ private fun TrackRow(
                 style = MaterialTheme.typography.bodyMedium,
             )
             if (track.lyricUri != null) {
-                Text("LRCX", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                Text("歌词", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
             }
         }
         Box {
@@ -741,7 +744,7 @@ private fun EmptyLibrary(hasFolder: Boolean, onChooseFolder: () -> Unit) {
         Spacer(Modifier.height(8.dp))
         Text(
             if (hasFolder) "支持 MP3、M4A、FLAC、WAV、OGG 与 OPUS。"
-            else "选择银临音乐所在目录，小银子会读取曲目与同名 .lrcx 歌词。",
+            else "选择银临音乐所在目录，小银子会读取曲目与同名 .lrc / .lrcx 歌词。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(24.dp))
@@ -910,13 +913,13 @@ private fun CreateGroupDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit)
 private fun NowPlayingScreen(
     state: PlayerUiState,
     lyrics: List<LyricLine>,
+    artworkLoader: TrackArtworkLoader,
     onClose: () -> Unit,
     onTogglePlay: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onSeek: (Long) -> Unit,
-    onShuffle: () -> Unit,
-    onRepeat: () -> Unit,
+    onCyclePlaybackMode: () -> Unit,
 ) {
     var showLyrics by remember(state.currentTrackUri) { mutableStateOf(false) }
     val currentLine = lyrics.indexOfLast { it.timeMs <= state.positionMs }
@@ -925,27 +928,16 @@ private fun NowPlayingScreen(
         if (showLyrics && currentLine >= 0) lyricListState.animateScrollToItem(currentLine, -120)
     }
 
-    Box(modifier = Modifier.fillMaxSize()) {
-        Image(
-            painter = painterResource(R.drawable.ink_water_scene),
-            contentDescription = null,
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            alpha = .52f,
-        )
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(
-                    Brush.verticalGradient(
-                        listOf(
-                            MaterialTheme.colorScheme.surface.copy(alpha = .58f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = .76f),
-                            MaterialTheme.colorScheme.surface.copy(alpha = .9f),
-                        ),
-                    ),
-                ),
-        )
+    Box(
+        modifier = Modifier
+            .fillMaxSize()
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) awaitPointerEvent()
+                }
+            }
+            .background(MaterialTheme.colorScheme.background),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxSize()
@@ -982,8 +974,9 @@ private fun NowPlayingScreen(
                     )
                 } else {
                     VinylStage(
+                        trackUri = state.currentTrackUri,
                         isPlaying = state.isPlaying,
-                        hasLyrics = lyrics.isNotEmpty(),
+                        artworkLoader = artworkLoader,
                         onShowLyrics = { showLyrics = true },
                     )
                 }
@@ -1005,24 +998,15 @@ private fun NowPlayingScreen(
 
             Row(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceAround,
+                horizontalArrangement = Arrangement.SpaceEvenly,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                IconButton(onClick = onShuffle) {
-                    Icon(Icons.Rounded.Shuffle, "随机播放", tint = if (state.shuffleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-                }
                 IconButton(onClick = onPrevious) { Icon(Icons.Rounded.SkipPrevious, "上一首", Modifier.size(34.dp)) }
                 FilledIconButton(onClick = onTogglePlay, modifier = Modifier.size(62.dp), shape = CircleShape) {
                     Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (state.isPlaying) "暂停" else "播放", Modifier.size(34.dp))
                 }
                 IconButton(onClick = onNext) { Icon(Icons.Rounded.SkipNext, "下一首", Modifier.size(34.dp)) }
-                IconButton(onClick = onRepeat) {
-                    Icon(
-                        if (state.repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
-                        "循环模式",
-                        tint = if (state.repeatMode == Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
-                    )
-                }
+                PlaybackModeButton(mode = state.playbackMode, onClick = onCyclePlaybackMode)
             }
         }
     }
@@ -1030,25 +1014,26 @@ private fun NowPlayingScreen(
 
 @Composable
 private fun VinylStage(
+    trackUri: String?,
     isPlaying: Boolean,
-    hasLyrics: Boolean,
+    artworkLoader: TrackArtworkLoader,
     onShowLyrics: () -> Unit,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Box(modifier = Modifier.fillMaxSize()) {
         VinylArtwork(
+            trackUri = trackUri,
             isPlaying = isPlaying,
+            artworkLoader = artworkLoader,
             modifier = Modifier
                 .align(Alignment.Center)
                 .clip(CircleShape)
-                .clickable(onClickLabel = "显示歌词", onClick = onShowLyrics),
-        )
-        Text(
-            if (hasLyrics) "轻触唱片 · 查看歌词" else "轻触唱片 · 暂无歌词",
-            modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .padding(bottom = 10.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
+                .clickable(
+                    interactionSource = interactionSource,
+                    indication = null,
+                    onClickLabel = "显示歌词",
+                    onClick = onShowLyrics,
+                ),
         )
     }
 }
@@ -1060,6 +1045,7 @@ private fun LyricsStage(
     listState: LazyListState,
     onShowVinyl: () -> Unit,
 ) {
+    val interactionSource = remember { MutableInteractionSource() }
     Column(modifier = Modifier.fillMaxSize()) {
         if (lyrics.isEmpty()) {
             Box(
@@ -1067,10 +1053,19 @@ private fun LyricsStage(
                     .weight(1f)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .clickable(onClickLabel = "返回唱片", onClick = onShowVinyl),
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClickLabel = "返回唱片",
+                        onClick = onShowVinyl,
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                Text("没有找到同名 .lrcx 歌词", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    "没有找到同名 .lrc 或 .lrcx 歌词",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
             }
         } else {
             LazyColumn(
@@ -1079,7 +1074,12 @@ private fun LyricsStage(
                     .weight(1f)
                     .fillMaxWidth()
                     .clip(RoundedCornerShape(24.dp))
-                    .clickable(onClickLabel = "返回唱片", onClick = onShowVinyl),
+                    .clickable(
+                        interactionSource = interactionSource,
+                        indication = null,
+                        onClickLabel = "返回唱片",
+                        onClick = onShowVinyl,
+                    ),
                 contentPadding = PaddingValues(vertical = 44.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -1088,6 +1088,7 @@ private fun LyricsStage(
                     Text(
                         text = line.text.ifBlank { "♪" },
                         modifier = Modifier.fillMaxWidth(),
+                        textAlign = TextAlign.Center,
                         color = if (index == currentLine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (index == currentLine) FontWeight.Bold else FontWeight.Normal,
                         style = if (index == currentLine) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
@@ -1095,23 +1096,21 @@ private fun LyricsStage(
                 }
             }
         }
-        Text(
-            "轻触歌词 · 返回唱片",
-            modifier = Modifier
-                .align(Alignment.CenterHorizontally)
-                .padding(top = 6.dp),
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelMedium,
-        )
     }
 }
 
 @Composable
-private fun VinylArtwork(isPlaying: Boolean, modifier: Modifier = Modifier) {
+private fun VinylArtwork(
+    trackUri: String?,
+    isPlaying: Boolean,
+    artworkLoader: TrackArtworkLoader,
+    modifier: Modifier = Modifier,
+) {
     val ink = MaterialTheme.colorScheme.onSurface
     val paper = MaterialTheme.colorScheme.surface
     val celadon = MaterialTheme.colorScheme.surfaceVariant
     val firefly = MaterialTheme.colorScheme.primary
+    val artwork = rememberTrackArtwork(trackUri, artworkLoader, 256.dp)
     val transition = rememberInfiniteTransition(label = "vinyl")
     val glow by transition.animateFloat(
         initialValue = .4f,
@@ -1125,16 +1124,64 @@ private fun VinylArtwork(isPlaying: Boolean, modifier: Modifier = Modifier) {
         animationSpec = infiniteRepeatable(tween(18_000), RepeatMode.Restart),
         label = "vinyl rotation",
     )
-    Canvas(modifier.size(218.dp).rotate(if (isPlaying) rotation else 0f)) {
-        val radius = size.minDimension / 2
-        drawCircle(celadon.copy(alpha = .9f), radius)
-        drawCircle(ink.copy(alpha = .22f), radius, style = Stroke(1.dp.toPx()))
-        repeat(5) { ring ->
-            drawCircle(ink.copy(alpha = .2f), radius * (.48f + ring * .09f), style = Stroke(1.dp.toPx()))
+    Box(
+        modifier = modifier
+            .size(218.dp)
+            .rotate(if (isPlaying) rotation else 0f)
+            .clip(CircleShape)
+            .background(celadon),
+    ) {
+        if (artwork != null) {
+            Image(
+                bitmap = artwork.asImageBitmap(),
+                contentDescription = "当前歌曲封面",
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Canvas(Modifier.matchParentSize()) {
+                val radius = size.minDimension / 2
+                drawCircle(celadon, radius)
+                drawCircle(ink.copy(alpha = .22f), radius, style = Stroke(1.dp.toPx()))
+                repeat(5) { ring ->
+                    drawCircle(ink.copy(alpha = .2f), radius * (.48f + ring * .09f), style = Stroke(1.dp.toPx()))
+                }
+                drawCircle(paper, radius * .25f)
+                drawCircle(firefly.copy(alpha = glow), radius * .1f)
+            }
         }
-        drawCircle(paper.copy(alpha = .92f), radius * .25f)
-        drawCircle(firefly.copy(alpha = glow), radius * .1f)
-        drawLine(ink.copy(alpha = .34f), Offset(radius * .34f, radius * .28f), Offset(radius * .78f, radius * .73f), 2.dp.toPx(), StrokeCap.Round)
+        Canvas(Modifier.matchParentSize()) {
+            val radius = size.minDimension / 2
+            drawCircle(ink.copy(alpha = .24f), radius - 1.dp.toPx(), style = Stroke(2.dp.toPx()))
+            drawCircle(paper.copy(alpha = .9f), radius * .035f)
+        }
+    }
+}
+
+@Composable
+private fun PlaybackModeButton(mode: PlaybackMode, onClick: () -> Unit) {
+    val icon = when (mode) {
+        PlaybackMode.SEQUENTIAL -> Icons.AutoMirrored.Rounded.QueueMusic
+        PlaybackMode.REPEAT_ALL -> Icons.Rounded.Repeat
+        PlaybackMode.REPEAT_ONE -> Icons.Rounded.RepeatOne
+        PlaybackMode.SHUFFLE -> Icons.Rounded.Shuffle
+    }
+    val description = when (mode) {
+        PlaybackMode.SEQUENTIAL -> "顺序播放，点击切换为列表循环"
+        PlaybackMode.REPEAT_ALL -> "列表循环，点击切换为单曲循环"
+        PlaybackMode.REPEAT_ONE -> "单曲循环，点击切换为随机播放"
+        PlaybackMode.SHUFFLE -> "随机播放，点击切换为顺序播放"
+    }
+    IconButton(onClick = onClick) {
+        Icon(
+            icon,
+            contentDescription = description,
+            tint = if (mode == PlaybackMode.SEQUENTIAL) {
+                MaterialTheme.colorScheme.onSurface
+            } else {
+                MaterialTheme.colorScheme.primary
+            },
+        )
     }
 }
 

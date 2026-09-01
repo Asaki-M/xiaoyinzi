@@ -31,9 +31,26 @@ data class PlayerUiState(
     val artist: String = "",
     val positionMs: Long = 0,
     val durationMs: Long = 0,
-    val shuffleEnabled: Boolean = false,
-    val repeatMode: Int = Player.REPEAT_MODE_OFF,
+    val playbackMode: PlaybackMode = PlaybackMode.SEQUENTIAL,
 )
+
+enum class PlaybackMode {
+    SEQUENTIAL,
+    REPEAT_ALL,
+    REPEAT_ONE,
+    SHUFFLE;
+
+    fun next(): PlaybackMode = entries[(ordinal + 1) % entries.size]
+
+    companion object {
+        fun from(shuffleEnabled: Boolean, repeatMode: Int): PlaybackMode = when {
+            shuffleEnabled -> SHUFFLE
+            repeatMode == Player.REPEAT_MODE_ALL -> REPEAT_ALL
+            repeatMode == Player.REPEAT_MODE_ONE -> REPEAT_ONE
+            else -> SEQUENTIAL
+        }
+    }
+}
 
 class PlayerConnection(context: Context) : AutoCloseable {
     private val applicationContext = context.applicationContext
@@ -88,16 +105,25 @@ class PlayerConnection(context: Context) : AutoCloseable {
         controller?.seekToPreviousMediaItem()
     }
 
-    fun toggleShuffle() {
-        controller?.let { it.shuffleModeEnabled = !it.shuffleModeEnabled }
-    }
-
-    fun cycleRepeatMode() {
-        controller?.let {
-            it.repeatMode = when (it.repeatMode) {
-                Player.REPEAT_MODE_OFF -> Player.REPEAT_MODE_ALL
-                Player.REPEAT_MODE_ALL -> Player.REPEAT_MODE_ONE
-                else -> Player.REPEAT_MODE_OFF
+    fun cyclePlaybackMode() {
+        controller?.let { player ->
+            when (PlaybackMode.from(player.shuffleModeEnabled, player.repeatMode).next()) {
+                PlaybackMode.SEQUENTIAL -> {
+                    player.shuffleModeEnabled = false
+                    player.repeatMode = Player.REPEAT_MODE_OFF
+                }
+                PlaybackMode.REPEAT_ALL -> {
+                    player.shuffleModeEnabled = false
+                    player.repeatMode = Player.REPEAT_MODE_ALL
+                }
+                PlaybackMode.REPEAT_ONE -> {
+                    player.shuffleModeEnabled = false
+                    player.repeatMode = Player.REPEAT_MODE_ONE
+                }
+                PlaybackMode.SHUFFLE -> {
+                    player.shuffleModeEnabled = true
+                    player.repeatMode = Player.REPEAT_MODE_ALL
+                }
             }
         }
     }
@@ -122,8 +148,7 @@ class PlayerConnection(context: Context) : AutoCloseable {
             artist = metadata.artist?.toString().orEmpty(),
             positionMs = player.currentPosition.coerceAtLeast(0),
             durationMs = player.duration.coerceAtLeast(0),
-            shuffleEnabled = player.shuffleModeEnabled,
-            repeatMode = player.repeatMode,
+            playbackMode = PlaybackMode.from(player.shuffleModeEnabled, player.repeatMode),
         )
     }
 

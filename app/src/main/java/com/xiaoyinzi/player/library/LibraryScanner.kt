@@ -19,7 +19,8 @@ class LibraryScanner(private val context: Context) {
         collectFiles(root, files)
 
         val lyricByStem = files
-            .filter { it.file.extension().equals("lrcx", ignoreCase = true) }
+            .filter { isSupportedLyricExtension(it.file.extension()) }
+            .sortedBy { if (it.file.extension().equals("lrcx", ignoreCase = true)) 1 else 0 }
             .associateBy { it.matchKey() }
 
         files.asSequence()
@@ -91,3 +92,8 @@ class LibraryScanner(private val context: Context) {
         }
     }
 }
+
+private val lyricExtensions = setOf("lrc", "lrcx")
+
+internal fun isSupportedLyricExtension(extension: String): Boolean =
+    extension.lowercase(Locale.ROOT) in lyricExtensions
