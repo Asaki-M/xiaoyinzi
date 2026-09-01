@@ -1,0 +1,46 @@
+app/src/main/java/com/xiaoyinzi/player/ui/TrackArtwork.kt
+  s_910ece76e48a21::t_27bb2173985cf9 23,34,42,44,74-89
+  s_910ece76e48a21::t_bf5217975f8b46 90
+app/src/test/java/com/xiaoyinzi/player/library/LibraryScannerTest.kt
+  s_910ece76e48a21::t_27bb2173985cf9 1-14
+app/src/test/java/com/xiaoyinzi/player/playback/PlaybackModeTest.kt
+  s_910ece76e48a21::t_27bb2173985cf9 1-23
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_910ece76e48a21::t_0f2cc8cf1fab4e 44,1164
+  s_910ece76e48a21::t_d5ea43a538c01a 105,934-938
+  s_910ece76e48a21::t_863804ed7cd337 125,200,206,699,747
+  s_910ece76e48a21::t_340c9cb809efe6 20,1022,1031-1036,1048,1056-1061,1064-1068,1077-1082,1091
+  s_910ece76e48a21::t_bbe82532b13d12 1017,1019,1025,1027
+  s_910ece76e48a21::t_663c07cc3b863d 103,465
+  s_910ece76e48a21::t_44337431b53809 1103-1108,1113,1127-1156,1158-1163,1165-1184
+  s_910ece76e48a21::t_8b4533431bc56b 916,922,931-933,939-940,977,979,1001,1009
+app/src/main/java/com/xiaoyinzi/player/library/LibraryScanner.kt
+  s_910ece76e48a21::t_663c07cc3b863d 96-97,99
+  s_910ece76e48a21::t_27bb2173985cf9 22-23,95,98
+app/src/main/java/com/xiaoyinzi/player/playback/PlayerConnection.kt
+  s_910ece76e48a21::t_27bb2173985cf9 34,37-54,108-126,151
+app/src/main/java/com/xiaoyinzi/player/playback/PlaybackService.kt
+  s_910ece76e48a21::t_b29bbf655f78cb 26
+  s_910ece76e48a21::t_9ac80b9a13c1cb 7
+  s_910ece76e48a21::t_e8418a6dd79ba1 17
+README.md
+  s_910ece76e48a21::t_663c07cc3b863d 14,16,31,33,69,80
+app/src/main/java/com/xiaoyinzi/player/MainActivity.kt
+  s_910ece76e48a21::t_340c9cb809efe6 5,23
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "066ad3b94e12c8b560c3bd1dee6cc56d003fa411",
+  "prompts": {},
+  "sessions": {
+    "s_910ece76e48a21": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05ba4-c331-7ce2-af5e-60980f5e768a",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
