@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
@@ -93,7 +94,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
@@ -124,6 +124,7 @@ import com.xiaoyinzi.player.lyrics.LyricLine
 import com.xiaoyinzi.player.library.TrackArtworkLoader
 import com.xiaoyinzi.player.playback.PlaybackMode
 import com.xiaoyinzi.player.playback.PlayerUiState
+import com.xiaoyinzi.player.playback.QueueItemUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -155,6 +156,7 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
             if (player.currentTrackUri != null) {
                 MiniPlayer(
                     state = player,
+                    artworkLoader = artworkLoader,
                     onOpen = { showNowPlaying = true },
                     onTogglePlay = viewModel.player::togglePlayPause,
                 )
@@ -204,6 +206,7 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
             onNext = viewModel.player::seekNext,
             onSeek = viewModel.player::seekTo,
             onCyclePlaybackMode = viewModel.player::cyclePlaybackMode,
+            onSelectQueueItem = viewModel.player::playQueueItem,
         )
     }
 
@@ -648,7 +651,7 @@ private fun TrackList(
                 onAddToGroup = { onAddToGroup(track.uri, it) },
                 onRemoveFromGroup = { onRemoveFromGroup(track.uri) },
             )
-            HorizontalDivider(modifier = Modifier.padding(start = 76.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
+            HorizontalDivider(modifier = Modifier.padding(start = 90.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
         }
     }
 }
@@ -673,14 +676,20 @@ private fun TrackRow(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onPlay)
-            .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
+            .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
+        Box(
+            modifier = Modifier
+                .size(width = 3.dp, height = 38.dp)
+                .clip(RoundedCornerShape(2.dp))
+                .background(if (isPlaying) MaterialTheme.colorScheme.primary else Color.Transparent),
+        )
+        Spacer(Modifier.size(9.dp))
         TrackArtwork(
             trackUri = track.uri,
-            isPlaying = isPlaying,
             loader = artworkLoader,
-            modifier = Modifier.size(44.dp),
+            modifier = Modifier.size(52.dp),
         )
         Column(
             modifier = Modifier
@@ -701,9 +710,14 @@ private fun TrackRow(
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium,
             )
-            if (track.lyricUri != null) {
-                Text("歌词", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
-            }
+        }
+        if (track.lyricUri != null) {
+            Text(
+                "词",
+                color = MaterialTheme.colorScheme.primary,
+                style = MaterialTheme.typography.labelMedium,
+                modifier = Modifier.padding(horizontal = 4.dp),
+            )
         }
         Box {
             IconButton(onClick = { menuOpen = true }) {
@@ -791,7 +805,12 @@ private fun FanCoverPair(modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun MiniPlayer(state: PlayerUiState, onOpen: () -> Unit, onTogglePlay: () -> Unit) {
+private fun MiniPlayer(
+    state: PlayerUiState,
+    artworkLoader: TrackArtworkLoader,
+    onOpen: () -> Unit,
+    onTogglePlay: () -> Unit,
+) {
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -804,13 +823,23 @@ private fun MiniPlayer(state: PlayerUiState, onOpen: () -> Unit, onTogglePlay: (
             Box(Modifier.fillMaxWidth(progress.coerceIn(0f, 1f)).height(2.dp).background(MaterialTheme.colorScheme.primary))
         }
         Row(
-            modifier = Modifier.padding(start = 18.dp, end = 10.dp, top = 9.dp, bottom = 9.dp),
+            modifier = Modifier.padding(start = 14.dp, end = 10.dp, top = 8.dp, bottom = 8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            PlayingPulse(state.isPlaying)
+            TrackArtwork(
+                trackUri = state.currentTrackUri.orEmpty(),
+                loader = artworkLoader,
+                modifier = Modifier.size(46.dp),
+            )
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
                 Text(state.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
-                Text(state.artist, maxLines = 1, color = MaterialTheme.colorScheme.onSurfaceVariant, style = MaterialTheme.typography.bodyMedium)
+                Text(
+                    playerSupportingText(state.album, state.artist),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
             }
             FilledIconButton(onClick = onTogglePlay) {
                 AnimatedContent(state.isPlaying, label = "play pause") { playing ->
@@ -818,25 +847,6 @@ private fun MiniPlayer(state: PlayerUiState, onOpen: () -> Unit, onTogglePlay: (
                 }
             }
         }
-    }
-}
-
-@Composable
-private fun PlayingPulse(isPlaying: Boolean) {
-    val accent = MaterialTheme.colorScheme.primary
-    val ink = MaterialTheme.colorScheme.onSurface
-    val paper = MaterialTheme.colorScheme.surface
-    val transition = rememberInfiniteTransition(label = "playing")
-    val pulse by transition.animateFloat(
-        initialValue = .45f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(tween(700), RepeatMode.Reverse),
-        label = "playing pulse",
-    )
-    Canvas(Modifier.size(36.dp).alpha(if (isPlaying) pulse else .45f)) {
-        drawCircle(ink, radius = size.minDimension / 2)
-        drawCircle(paper, radius = size.minDimension / 5)
-        drawCircle(accent, radius = size.minDimension / 18)
     }
 }
 
@@ -915,6 +925,7 @@ private fun CreateGroupDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit)
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun NowPlayingScreen(
     state: PlayerUiState,
@@ -926,8 +937,10 @@ private fun NowPlayingScreen(
     onNext: () -> Unit,
     onSeek: (Long) -> Unit,
     onCyclePlaybackMode: () -> Unit,
+    onSelectQueueItem: (Int) -> Unit,
 ) {
     var showLyrics by remember(state.currentTrackUri) { mutableStateOf(false) }
+    var showQueue by remember { mutableStateOf(false) }
     val currentLine = lyrics.indexOfLast { it.timeMs <= state.positionMs }
     val lyricListState = rememberLazyListState()
     LaunchedEffect(showLyrics, currentLine) {
@@ -953,11 +966,16 @@ private fun NowPlayingScreen(
         ) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    if (showLyrics) "歌词" else "正在播放",
+                    if (showLyrics) "银临 · 歌词" else "银临 · 正在播放",
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
-                IconButton(onClick = onClose) { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "收起") }
+                Row {
+                    IconButton(onClick = { showQueue = true }) {
+                        Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = "播放队列")
+                    }
+                    IconButton(onClick = onClose) { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "收起") }
+                }
             }
             Spacer(Modifier.height(4.dp))
             AnimatedContent(
@@ -989,7 +1007,12 @@ private fun NowPlayingScreen(
             }
             Spacer(Modifier.height(16.dp))
             Text(state.title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(state.artist, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            Text(
+                playerSupportingText(state.album, state.artist),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
             Spacer(Modifier.height(12.dp))
 
             Slider(
@@ -1013,6 +1036,98 @@ private fun NowPlayingScreen(
                 }
                 IconButton(onClick = onNext) { Icon(Icons.Rounded.SkipNext, "下一首", Modifier.size(34.dp)) }
                 PlaybackModeButton(mode = state.playbackMode, onClick = onCyclePlaybackMode)
+            }
+        }
+    }
+
+    if (showQueue) {
+        ModalBottomSheet(
+            onDismissRequest = { showQueue = false },
+            containerColor = MaterialTheme.colorScheme.surface,
+        ) {
+            PlaybackQueue(
+                queue = state.queue,
+                currentIndex = state.currentQueueIndex,
+                artworkLoader = artworkLoader,
+                onSelect = { index ->
+                    onSelectQueueItem(index)
+                    showQueue = false
+                },
+            )
+        }
+    }
+}
+
+@Composable
+private fun PlaybackQueue(
+    queue: List<QueueItemUiState>,
+    currentIndex: Int,
+    artworkLoader: TrackArtworkLoader,
+    onSelect: (Int) -> Unit,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .fillMaxHeight(.68f)
+            .navigationBarsPadding(),
+    ) {
+        Text(
+            "接下来播放",
+            style = MaterialTheme.typography.headlineSmall,
+            modifier = Modifier.padding(horizontal = 22.dp),
+        )
+        Text(
+            "${queue.size} 首歌曲",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(start = 22.dp, top = 4.dp, bottom = 12.dp),
+        )
+        LazyColumn(
+            modifier = Modifier.weight(1f),
+            contentPadding = PaddingValues(bottom = 20.dp),
+        ) {
+            items(queue.size, key = { queue[it].uri }) { index ->
+                val item = queue[index]
+                val isCurrent = index == currentIndex
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { onSelect(index) }
+                        .padding(horizontal = 18.dp, vertical = 9.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .size(width = 3.dp, height = 34.dp)
+                            .clip(RoundedCornerShape(2.dp))
+                            .background(if (isCurrent) MaterialTheme.colorScheme.primary else Color.Transparent),
+                    )
+                    Spacer(Modifier.size(9.dp))
+                    TrackArtwork(
+                        trackUri = item.uri,
+                        loader = artworkLoader,
+                        modifier = Modifier.size(46.dp),
+                    )
+                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
+                        Text(
+                            item.title,
+                            color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.titleMedium,
+                        )
+                        Text(
+                            playerSupportingText(item.album, item.artist),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    if (isCurrent) {
+                        Text("当前", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
+                    }
+                }
             }
         }
     }
@@ -1202,4 +1317,9 @@ private fun trackSupportingText(track: TrackEntity): String = listOfNotNull(
         it.isNotBlank() && it != "银临" && it != "未知音乐人"
     },
     formatDuration(track.durationMs),
+).joinToString("  ·  ")
+
+private fun playerSupportingText(album: String, artist: String): String = listOfNotNull(
+    album.takeIf(String::isNotBlank)?.let { "《$it》" },
+    artist.takeIf { it.isNotBlank() && it != "未知音乐人" },
 ).joinToString("  ·  ")

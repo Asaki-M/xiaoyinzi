@@ -29,9 +29,19 @@ data class PlayerUiState(
     val currentTrackUri: String? = null,
     val title: String = "",
     val artist: String = "",
+    val album: String = "",
     val positionMs: Long = 0,
     val durationMs: Long = 0,
     val playbackMode: PlaybackMode = PlaybackMode.SEQUENTIAL,
+    val queue: List<QueueItemUiState> = emptyList(),
+    val currentQueueIndex: Int = 0,
+)
+
+data class QueueItemUiState(
+    val uri: String,
+    val title: String,
+    val artist: String,
+    val album: String,
 )
 
 enum class PlaybackMode {
@@ -105,6 +115,14 @@ class PlayerConnection(context: Context) : AutoCloseable {
         controller?.seekToPreviousMediaItem()
     }
 
+    fun playQueueItem(index: Int) {
+        controller?.let { player ->
+            if (index !in 0 until player.mediaItemCount) return
+            player.seekToDefaultPosition(index)
+            player.play()
+        }
+    }
+
     fun cyclePlaybackMode() {
         controller?.let { player ->
             when (PlaybackMode.from(player.shuffleModeEnabled, player.repeatMode).next()) {
@@ -146,9 +164,21 @@ class PlayerConnection(context: Context) : AutoCloseable {
             currentTrackUri = player.currentMediaItem?.mediaId,
             title = metadata.title?.toString().orEmpty(),
             artist = metadata.artist?.toString().orEmpty(),
+            album = metadata.albumTitle?.toString().orEmpty(),
             positionMs = player.currentPosition.coerceAtLeast(0),
             durationMs = player.duration.coerceAtLeast(0),
             playbackMode = PlaybackMode.from(player.shuffleModeEnabled, player.repeatMode),
+            queue = (0 until player.mediaItemCount).map { index ->
+                player.getMediaItemAt(index).let { item ->
+                    QueueItemUiState(
+                        uri = item.mediaId,
+                        title = item.mediaMetadata.title?.toString().orEmpty(),
+                        artist = item.mediaMetadata.artist?.toString().orEmpty(),
+                        album = item.mediaMetadata.albumTitle?.toString().orEmpty(),
+                    )
+                }
+            },
+            currentQueueIndex = player.currentMediaItemIndex.coerceAtLeast(0),
         )
     }
 
