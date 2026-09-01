@@ -1,0 +1,80 @@
+package com.xiaoyinzi.player.ui
+
+import androidx.compose.foundation.Image
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.PlayArrow
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.unit.dp
+import com.xiaoyinzi.player.library.TrackArtworkLoader
+
+@Composable
+internal fun TrackArtwork(
+    trackUri: String,
+    isPlaying: Boolean,
+    loader: TrackArtworkLoader,
+    modifier: Modifier = Modifier,
+) {
+    val targetSizePx = with(LocalDensity.current) { 56.dp.roundToPx() }
+    val artwork by produceState<android.graphics.Bitmap?>(
+        initialValue = null,
+        key1 = trackUri,
+        key2 = targetSizePx,
+    ) {
+        value = loader.load(trackUri, targetSizePx)
+    }
+
+    Box(
+        modifier = modifier
+            .clip(RoundedCornerShape(9.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant),
+        contentAlignment = Alignment.Center,
+    ) {
+        val currentArtwork = artwork
+        if (currentArtwork != null) {
+            Image(
+                bitmap = currentArtwork.asImageBitmap(),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+            )
+        } else {
+            Icon(
+                Icons.Rounded.Album,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
+        if (isPlaying) {
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .background(Color.Black.copy(alpha = .34f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.PlayArrow,
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                    tint = Color.White,
+                )
+            }
+        }
+    }
+}

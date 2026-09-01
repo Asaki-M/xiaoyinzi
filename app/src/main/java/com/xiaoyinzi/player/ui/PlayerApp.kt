@@ -1,12 +1,18 @@
 package com.xiaoyinzi.player.ui
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
@@ -26,10 +32,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.rounded.Add
@@ -64,6 +72,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
@@ -80,6 +89,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
@@ -92,7 +103,9 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -106,6 +119,7 @@ import com.xiaoyinzi.player.casting.CastConnectionStatus
 import com.xiaoyinzi.player.casting.CastDevice
 import com.xiaoyinzi.player.casting.CastUiState
 import com.xiaoyinzi.player.lyrics.LyricLine
+import com.xiaoyinzi.player.library.TrackArtworkLoader
 import com.xiaoyinzi.player.playback.PlayerUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -119,6 +133,9 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
     var showNowPlaying by remember { mutableStateOf(false) }
     var showCastPanel by remember { mutableStateOf(false) }
     val snackbarHost = remember { SnackbarHostState() }
+    val artworkLoader = remember {
+        TrackArtworkLoader(viewModel.getApplication())
+    }
 
     LaunchedEffect(library.message) {
         library.message?.let {
@@ -144,6 +161,7 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
         LibraryScreen(
             state = library,
             playingUri = player.currentTrackUri,
+            artworkLoader = artworkLoader,
             modifier = Modifier.padding(padding),
             onChooseFolder = onChooseFolder,
             onRescan = viewModel::rescan,
@@ -172,23 +190,18 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
     }
 
     if (showNowPlaying) {
-        ModalBottomSheet(
-            onDismissRequest = { showNowPlaying = false },
-            containerColor = MaterialTheme.colorScheme.background,
-            dragHandle = null,
-        ) {
-            NowPlayingScreen(
-                state = player,
-                lyrics = lyrics,
-                onClose = { showNowPlaying = false },
-                onTogglePlay = viewModel.player::togglePlayPause,
-                onPrevious = viewModel.player::seekPrevious,
-                onNext = viewModel.player::seekNext,
-                onSeek = viewModel.player::seekTo,
-                onShuffle = viewModel.player::toggleShuffle,
-                onRepeat = viewModel.player::cycleRepeatMode,
-            )
-        }
+        BackHandler { showNowPlaying = false }
+        NowPlayingScreen(
+            state = player,
+            lyrics = lyrics,
+            onClose = { showNowPlaying = false },
+            onTogglePlay = viewModel.player::togglePlayPause,
+            onPrevious = viewModel.player::seekPrevious,
+            onNext = viewModel.player::seekNext,
+            onSeek = viewModel.player::seekTo,
+            onShuffle = viewModel.player::toggleShuffle,
+            onRepeat = viewModel.player::cycleRepeatMode,
+        )
     }
 
     if (showCastPanel) {
@@ -215,6 +228,7 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
 private fun LibraryScreen(
     state: LibraryUiState,
     playingUri: String?,
+    artworkLoader: TrackArtworkLoader,
     modifier: Modifier,
     onChooseFolder: () -> Unit,
     onRescan: () -> Unit,
@@ -267,6 +281,7 @@ private fun LibraryScreen(
                 groups = state.groups,
                 selectedGroupId = state.selectedGroupId,
                 playingUri = playingUri,
+                artworkLoader = artworkLoader,
                 onPlay = onPlay,
                 onAddToGroup = onAddToGroup,
                 onRemoveFromGroup = onRemoveFromGroup,
@@ -613,6 +628,7 @@ private fun TrackList(
     groups: List<GroupSummary>,
     selectedGroupId: Long?,
     playingUri: String?,
+    artworkLoader: TrackArtworkLoader,
     onPlay: (TrackEntity) -> Unit,
     onAddToGroup: (String, Long) -> Unit,
     onRemoveFromGroup: (String) -> Unit,
@@ -624,6 +640,7 @@ private fun TrackList(
                 groups = groups,
                 selectedGroupId = selectedGroupId,
                 isPlaying = playingUri == track.uri,
+                artworkLoader = artworkLoader,
                 onPlay = { onPlay(track) },
                 onAddToGroup = { onAddToGroup(track.uri, it) },
                 onRemoveFromGroup = { onRemoveFromGroup(track.uri) },
@@ -639,6 +656,7 @@ private fun TrackRow(
     groups: List<GroupSummary>,
     selectedGroupId: Long?,
     isPlaying: Boolean,
+    artworkLoader: TrackArtworkLoader,
     onPlay: () -> Unit,
     onAddToGroup: (Long) -> Unit,
     onRemoveFromGroup: () -> Unit,
@@ -655,19 +673,12 @@ private fun TrackRow(
             .padding(start = 20.dp, end = 8.dp, top = 12.dp, bottom = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            modifier = Modifier
-                .size(44.dp)
-                .clip(CircleShape)
-                .background(if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant),
-            contentAlignment = Alignment.Center,
-        ) {
-            Icon(
-                if (isPlaying) Icons.Rounded.PlayArrow else Icons.Rounded.Album,
-                contentDescription = null,
-                tint = if (isPlaying) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
+        TrackArtwork(
+            trackUri = track.uri,
+            isPlaying = isPlaying,
+            loader = artworkLoader,
+            modifier = Modifier.size(44.dp),
+        )
         Column(
             modifier = Modifier
                 .weight(1f)
@@ -823,23 +834,75 @@ private fun PlayingPulse(isPlaying: Boolean) {
 @Composable
 private fun CreateGroupDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
     var name by remember { mutableStateOf("") }
+    val focusRequester = remember { FocusRequester() }
+    val trimmedName = name.trim()
+
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text("创建分组") },
-        text = {
-            TextField(
-                value = name,
-                onValueChange = { name = it },
-                placeholder = { Text("例如：夜晚散步") },
-                singleLine = true,
-                colors = TextFieldDefaults.colors(
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                ),
-            )
+        icon = {
+            Box(
+                modifier = Modifier
+                    .size(48.dp)
+                    .clip(CircleShape)
+                    .background(MaterialTheme.colorScheme.primary.copy(alpha = .14f)),
+                contentAlignment = Alignment.Center,
+            ) {
+                Icon(
+                    Icons.Rounded.LibraryMusic,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.primary,
+                )
+            }
         },
-        confirmButton = { TextButton(onClick = { onCreate(name) }, enabled = name.isNotBlank()) { Text("创建") } },
+        title = { Text("新建歌曲分组", style = MaterialTheme.typography.headlineSmall) },
+        text = {
+            Column {
+                Text(
+                    "给收藏的歌曲起一个容易找到的名字。",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+                Spacer(Modifier.height(16.dp))
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it.take(20) },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .focusRequester(focusRequester),
+                    label = { Text("分组名称") },
+                    placeholder = { Text("例如：夜晚散步") },
+                    supportingText = {
+                        Text(
+                            "${name.length}/20",
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.End,
+                        )
+                    },
+                    leadingIcon = { Icon(Icons.Rounded.Album, contentDescription = null) },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+                    keyboardActions = KeyboardActions(
+                        onDone = { if (trimmedName.isNotEmpty()) onCreate(trimmedName) },
+                    ),
+                )
+            }
+        },
+        confirmButton = {
+            Button(
+                onClick = { onCreate(trimmedName) },
+                enabled = trimmedName.isNotEmpty(),
+            ) {
+                Text("创建分组")
+            }
+        },
         dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
+        shape = RoundedCornerShape(28.dp),
+        containerColor = MaterialTheme.colorScheme.surface,
+        tonalElevation = 6.dp,
     )
 }
 
@@ -855,10 +918,11 @@ private fun NowPlayingScreen(
     onShuffle: () -> Unit,
     onRepeat: () -> Unit,
 ) {
+    var showLyrics by remember(state.currentTrackUri) { mutableStateOf(false) }
     val currentLine = lyrics.indexOfLast { it.timeMs <= state.positionMs }
     val lyricListState = rememberLazyListState()
-    LaunchedEffect(currentLine) {
-        if (currentLine >= 0) lyricListState.animateScrollToItem(currentLine, -120)
+    LaunchedEffect(showLyrics, currentLine) {
+        if (showLyrics && currentLine >= 0) lyricListState.animateScrollToItem(currentLine, -120)
     }
 
     Box(modifier = Modifier.fillMaxSize()) {
@@ -889,66 +953,141 @@ private fun NowPlayingScreen(
                 .navigationBarsPadding()
                 .padding(horizontal = 22.dp),
         ) {
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-            Text("正在播放", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.primary)
-            IconButton(onClick = onClose) { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "收起") }
-        }
-        Spacer(Modifier.height(8.dp))
-        VinylArtwork(isPlaying = state.isPlaying, modifier = Modifier.align(Alignment.CenterHorizontally))
-        Spacer(Modifier.height(24.dp))
-        Text(state.title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-        Text(state.artist, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
-        Spacer(Modifier.height(16.dp))
-
-        Slider(
-            value = state.positionMs.toFloat().coerceAtMost(state.durationMs.coerceAtLeast(1).toFloat()),
-            onValueChange = { onSeek(it.toLong()) },
-            valueRange = 0f..state.durationMs.coerceAtLeast(1).toFloat(),
-        )
-        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-            Text(formatDuration(state.positionMs), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            Text(formatDuration(state.durationMs), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-            horizontalArrangement = Arrangement.SpaceAround,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(onClick = onShuffle) {
-                Icon(Icons.Rounded.Shuffle, "随机播放", tint = if (state.shuffleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
-            }
-            IconButton(onClick = onPrevious) { Icon(Icons.Rounded.SkipPrevious, "上一首", Modifier.size(34.dp)) }
-            FilledIconButton(onClick = onTogglePlay, modifier = Modifier.size(62.dp), shape = CircleShape) {
-                Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (state.isPlaying) "暂停" else "播放", Modifier.size(34.dp))
-            }
-            IconButton(onClick = onNext) { Icon(Icons.Rounded.SkipNext, "下一首", Modifier.size(34.dp)) }
-            IconButton(onClick = onRepeat) {
-                Icon(
-                    if (state.repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
-                    "循环模式",
-                    tint = if (state.repeatMode == Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
+                Text(
+                    if (showLyrics) "歌词" else "正在播放",
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.primary,
                 )
+                IconButton(onClick = onClose) { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "收起") }
+            }
+            Spacer(Modifier.height(4.dp))
+            AnimatedContent(
+                targetState = showLyrics,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth(),
+                transitionSpec = {
+                    (fadeIn(tween(220)) + scaleIn(tween(220), initialScale = .97f)) togetherWith
+                        (fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 1.03f))
+                },
+                label = "唱片歌词切换",
+            ) { lyricsVisible ->
+                if (lyricsVisible) {
+                    LyricsStage(
+                        lyrics = lyrics,
+                        currentLine = currentLine,
+                        listState = lyricListState,
+                        onShowVinyl = { showLyrics = false },
+                    )
+                } else {
+                    VinylStage(
+                        isPlaying = state.isPlaying,
+                        hasLyrics = lyrics.isNotEmpty(),
+                        onShowLyrics = { showLyrics = true },
+                    )
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+            Text(state.title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text(state.artist, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1)
+            Spacer(Modifier.height(12.dp))
+
+            Slider(
+                value = state.positionMs.toFloat().coerceAtMost(state.durationMs.coerceAtLeast(1).toFloat()),
+                onValueChange = { onSeek(it.toLong()) },
+                valueRange = 0f..state.durationMs.coerceAtLeast(1).toFloat(),
+            )
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+                Text(formatDuration(state.positionMs), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(formatDuration(state.durationMs), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.SpaceAround,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = onShuffle) {
+                    Icon(Icons.Rounded.Shuffle, "随机播放", tint = if (state.shuffleEnabled) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface)
+                }
+                IconButton(onClick = onPrevious) { Icon(Icons.Rounded.SkipPrevious, "上一首", Modifier.size(34.dp)) }
+                FilledIconButton(onClick = onTogglePlay, modifier = Modifier.size(62.dp), shape = CircleShape) {
+                    Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (state.isPlaying) "暂停" else "播放", Modifier.size(34.dp))
+                }
+                IconButton(onClick = onNext) { Icon(Icons.Rounded.SkipNext, "下一首", Modifier.size(34.dp)) }
+                IconButton(onClick = onRepeat) {
+                    Icon(
+                        if (state.repeatMode == Player.REPEAT_MODE_ONE) Icons.Rounded.RepeatOne else Icons.Rounded.Repeat,
+                        "循环模式",
+                        tint = if (state.repeatMode == Player.REPEAT_MODE_OFF) MaterialTheme.colorScheme.onSurface else MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
+    }
+}
 
-        Text("歌词", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+@Composable
+private fun VinylStage(
+    isPlaying: Boolean,
+    hasLyrics: Boolean,
+    onShowLyrics: () -> Unit,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        VinylArtwork(
+            isPlaying = isPlaying,
+            modifier = Modifier
+                .align(Alignment.Center)
+                .clip(CircleShape)
+                .clickable(onClickLabel = "显示歌词", onClick = onShowLyrics),
+        )
+        Text(
+            if (hasLyrics) "轻触唱片 · 查看歌词" else "轻触唱片 · 暂无歌词",
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .padding(bottom = 10.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+        )
+    }
+}
+
+@Composable
+private fun LyricsStage(
+    lyrics: List<LyricLine>,
+    currentLine: Int,
+    listState: LazyListState,
+    onShowVinyl: () -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxSize()) {
         if (lyrics.isEmpty()) {
-            Box(Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
+            Box(
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable(onClickLabel = "返回唱片", onClick = onShowVinyl),
+                contentAlignment = Alignment.Center,
+            ) {
                 Text("没有找到同名 .lrcx 歌词", color = MaterialTheme.colorScheme.onSurfaceVariant)
             }
         } else {
             LazyColumn(
-                state = lyricListState,
-                modifier = Modifier.weight(1f).fillMaxWidth(),
-                contentPadding = PaddingValues(vertical = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(14.dp),
+                state = listState,
+                modifier = Modifier
+                    .weight(1f)
+                    .fillMaxWidth()
+                    .clip(RoundedCornerShape(24.dp))
+                    .clickable(onClickLabel = "返回唱片", onClick = onShowVinyl),
+                contentPadding = PaddingValues(vertical = 44.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 items(lyrics.size) { index ->
                     val line = lyrics[index]
                     Text(
                         text = line.text.ifBlank { "♪" },
-                        modifier = Modifier.fillMaxWidth().clickable { onSeek(line.timeMs) },
+                        modifier = Modifier.fillMaxWidth(),
                         color = if (index == currentLine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (index == currentLine) FontWeight.Bold else FontWeight.Normal,
                         style = if (index == currentLine) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
@@ -956,7 +1095,14 @@ private fun NowPlayingScreen(
                 }
             }
         }
-        }
+        Text(
+            "轻触歌词 · 返回唱片",
+            modifier = Modifier
+                .align(Alignment.CenterHorizontally)
+                .padding(top = 6.dp),
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.labelMedium,
+        )
     }
 }
 
@@ -979,7 +1125,7 @@ private fun VinylArtwork(isPlaying: Boolean, modifier: Modifier = Modifier) {
         animationSpec = infiniteRepeatable(tween(18_000), RepeatMode.Restart),
         label = "vinyl rotation",
     )
-    Canvas(modifier.size(190.dp).rotate(if (isPlaying) rotation else 0f)) {
+    Canvas(modifier.size(218.dp).rotate(if (isPlaying) rotation else 0f)) {
         val radius = size.minDimension / 2
         drawCircle(celadon.copy(alpha = .9f), radius)
         drawCircle(ink.copy(alpha = .22f), radius, style = Stroke(1.dp.toPx()))
