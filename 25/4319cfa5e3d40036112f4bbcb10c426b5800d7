@@ -1,0 +1,21 @@
+app/src/main/java/com/xiaoyinzi/player/ui/Typography.kt
+  s_910ece76e48a21::t_13e1ce599817cd 23-28,35-40
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_910ece76e48a21::t_13e1ce599817cd 691-698,1100,1198-1205
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "254319cfa5e3d40036112f4bbcb10c426b5800d7",
+  "prompts": {},
+  "sessions": {
+    "s_910ece76e48a21": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05ba4-c331-7ce2-af5e-60980f5e768a",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
