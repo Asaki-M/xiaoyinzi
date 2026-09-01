@@ -20,11 +20,23 @@ val AppTypography = Typography(
         fontSize = 25.sp,
         lineHeight = 32.sp,
     ),
+    titleLarge = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.SemiBold,
+        fontSize = 18.sp,
+        lineHeight = 24.sp,
+    ),
     titleMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,
         fontWeight = FontWeight.SemiBold,
         fontSize = 16.sp,
         lineHeight = 21.sp,
+    ),
+    bodyLarge = TextStyle(
+        fontFamily = FontFamily.Serif,
+        fontWeight = FontWeight.Normal,
+        fontSize = 16.sp,
+        lineHeight = 26.sp,
     ),
     bodyMedium = TextStyle(
         fontFamily = FontFamily.SansSerif,

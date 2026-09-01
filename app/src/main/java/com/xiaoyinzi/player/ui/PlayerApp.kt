@@ -687,9 +687,15 @@ private fun TrackRow(
                 .weight(1f)
                 .padding(horizontal = 12.dp),
         ) {
-            Text(track.title, color = titleColor, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
             Text(
-                listOfNotNull(track.artist, formatDuration(track.durationMs)).joinToString("  ·  "),
+                track.title,
+                color = titleColor,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                style = MaterialTheme.typography.titleLarge,
+            )
+            Text(
+                trackSupportingText(track),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
@@ -1091,7 +1097,7 @@ private fun LyricsStage(
                         textAlign = TextAlign.Center,
                         color = if (index == currentLine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                         fontWeight = if (index == currentLine) FontWeight.Bold else FontWeight.Normal,
-                        style = if (index == currentLine) MaterialTheme.typography.titleMedium else MaterialTheme.typography.bodyMedium,
+                        style = if (index == currentLine) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
                     )
                 }
             }
@@ -1189,3 +1195,11 @@ private fun formatDuration(durationMs: Long): String {
     val totalSeconds = durationMs.coerceAtLeast(0) / 1_000
     return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
+
+private fun trackSupportingText(track: TrackEntity): String = listOfNotNull(
+    track.album.takeIf(String::isNotBlank),
+    track.artist.takeIf {
+        it.isNotBlank() && it != "银临" && it != "未知音乐人"
+    },
+    formatDuration(track.durationMs),
+).joinToString("  ·  ")
