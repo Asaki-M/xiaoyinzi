@@ -1,0 +1,34 @@
+README.md
+  s_eac3d6c495617c::t_c0f12dd8e5d307 74-75
+app/src/main/AndroidManifest.xml
+  s_eac3d6c495617c::t_c0f12dd8e5d307 9
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_eac3d6c495617c::t_f85a3abce160ce 5,36,53,88,630-642,644-646,661-743
+  s_eac3d6c495617c::t_5c4c8adb0471f7 744
+mac-lyrics-protocol.md
+  s_eac3d6c495617c::t_c0f12dd8e5d307 10,32,34,40,43-44
+app/src/main/java/com/xiaoyinzi/player/casting/CastProtocol.kt
+  s_eac3d6c495617c::t_c0f12dd8e5d307 7-9
+app/src/main/java/com/xiaoyinzi/player/casting/MacServiceDiscovery.kt
+  s_eac3d6c495617c::t_c0f12dd8e5d307 6,11,16-19,24-26,29,36-53,61,70,75-80,84-88,94-95,99,101-106,112-113,115-117,120-122,134-136,143-144,146,148-150,152-153,159,170-184
+app/src/main/java/com/xiaoyinzi/player/casting/LyricsCastManager.kt
+  s_eac3d6c495617c::t_c0f12dd8e5d307 103-109
+app/src/test/java/com/xiaoyinzi/player/casting/CastProtocolTest.kt
+  s_eac3d6c495617c::t_c0f12dd8e5d307 47-52
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "b4780bef974f904eeaa7bfe82d141ecc297778e2",
+  "prompts": {},
+  "sessions": {
+    "s_eac3d6c495617c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05fe7-7c01-7f10-aab7-1109b4873874",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
