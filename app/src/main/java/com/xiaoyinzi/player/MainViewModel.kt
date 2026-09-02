@@ -1,7 +1,6 @@
 package com.xiaoyinzi.player
 
 import android.app.Application
-import android.content.Intent
 import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
@@ -28,7 +27,6 @@ data class LibraryUiState(
     val groups: List<GroupSummary> = emptyList(),
     val selectedGroupId: Long? = null,
     val selectedGroupName: String? = null,
-    val folderUri: String? = null,
     val scanning: Boolean = false,
     val message: String? = null,
 )
@@ -38,8 +36,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val app = application as XiaoYinZiApplication
     private val repository: LibraryRepository = app.libraryRepository
     private val scanner: LibraryScanner = app.libraryScanner
+    private val archiveImporter = app.libraryArchiveImporter
+    private val managedMusicDirectory = app.managedMusicDirectory
+    private val managedLibraryFiles = app.managedLibraryFiles
     private val lyricParser: LrcxParser = app.lyricParser
-    private val preferences = application.getSharedPreferences("library", 0)
     private val selectedGroupId = MutableStateFlow<Long?>(null)
     private val scanning = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
@@ -71,29 +71,35 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             groups = groups,
             selectedGroupId = groupId,
             selectedGroupName = groups.firstOrNull { it.id == groupId }?.name,
-            folderUri = preferences.getString(KEY_FOLDER_URI, null),
             scanning = isScanning,
             message = currentMessage,
         )
     }.stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), LibraryUiState())
 
     init {
-        preferences.getString(KEY_FOLDER_URI, null)?.let { scan(Uri.parse(it)) }
-    }
-
-    fun selectFolder(uri: Uri) {
-        runCatching {
-            getApplication<Application>().contentResolver.takePersistableUriPermission(
-                uri,
-                Intent.FLAG_GRANT_READ_URI_PERMISSION,
-            )
-            preferences.edit().putString(KEY_FOLDER_URI, uri.toString()).apply()
-            scan(uri)
-        }.onFailure { message.value = "无法读取所选目录：${it.localizedMessage}" }
+        viewModelScope.launch { scanManagedLibrary(showMessage = false) }
     }
 
     fun rescan() {
-        preferences.getString(KEY_FOLDER_URI, null)?.let { scan(Uri.parse(it)) }
+        viewModelScope.launch { scanManagedLibrary(showMessage = true) }
+    }
+
+    fun importArchive(uri: Uri) {
+        viewModelScope.launch {
+            scanning.value = true
+            message.value = null
+            runCatching {
+                val result = archiveImporter.importArchive(uri)
+                val tracks = scanner.scan(managedMusicDirectory)
+                repository.replaceScan(managedMusicDirectory.toUriString(), tracks)
+                result
+            }.onSuccess { result ->
+                message.value = "已导入 ${result.audioCount} 首音乐、${result.lyricCount} 个歌词文件"
+            }.onFailure {
+                message.value = "导入失败：${it.localizedMessage}"
+            }
+            scanning.value = false
+        }
     }
 
     fun selectGroup(groupId: Long?) {
@@ -124,6 +130,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         viewModelScope.launch { repository.removeFromGroup(trackUri, groupId) }
     }
 
+    fun deleteTrack(track: TrackEntity) {
+        viewModelScope.launch {
+            message.value = null
+            runCatching {
+                managedLibraryFiles.deleteTrack(track)
+                player.removeFromQueue(track.uri)
+                repository.deleteTrack(track.uri)
+            }.onSuccess {
+                message.value = "已删除《${track.title}》及关联歌词"
+            }.onFailure {
+                message.value = "删除失败：${it.localizedMessage}"
+            }
+        }
+    }
+
     fun play(track: TrackEntity) {
         player.play(track, uiState.value.tracks)
     }
@@ -144,26 +165,22 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun forgetCastPairing() = app.lyricsCastManager.forgetPairing()
 
-    private fun scan(uri: Uri) {
-        viewModelScope.launch {
-            scanning.value = true
-            message.value = null
-            runCatching { scanner.scan(uri) }
-                .onSuccess { tracks ->
-                    repository.replaceScan(uri.toString(), tracks)
-                    message.value = "已找到 ${tracks.size} 首音乐"
-                }
-                .onFailure { message.value = "扫描失败：${it.localizedMessage}" }
-            scanning.value = false
-        }
+    private suspend fun scanManagedLibrary(showMessage: Boolean) {
+        scanning.value = true
+        message.value = null
+        runCatching { scanner.scan(managedMusicDirectory) }
+            .onSuccess { tracks ->
+                repository.replaceScan(managedMusicDirectory.toUriString(), tracks)
+                if (showMessage) message.value = "已找到 ${tracks.size} 首音乐"
+            }
+            .onFailure { message.value = "扫描失败：${it.localizedMessage}" }
+        scanning.value = false
     }
 
     override fun onCleared() {
         player.close()
         super.onCleared()
     }
-
-    private companion object {
-        const val KEY_FOLDER_URI = "folder_uri"
-    }
 }
+
+private fun java.io.File.toUriString(): String = Uri.fromFile(this).toString()

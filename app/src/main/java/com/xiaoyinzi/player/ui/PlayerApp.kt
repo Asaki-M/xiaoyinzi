@@ -45,11 +45,11 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
+import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.DeleteOutline
-import androidx.compose.material.icons.rounded.FolderOpen
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
@@ -129,7 +129,7 @@ import com.xiaoyinzi.player.playback.QueueItemUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
+fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
     val library by viewModel.uiState.collectAsStateWithLifecycle()
     val player by viewModel.playerState.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
@@ -170,7 +170,7 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
             playingUri = player.currentTrackUri,
             artworkLoader = artworkLoader,
             modifier = Modifier.padding(padding),
-            onChooseFolder = onChooseFolder,
+            onImportArchive = onImportArchive,
             onRescan = viewModel::rescan,
             onCreateGroup = { showCreateGroup = true },
             onSelectGroup = viewModel::selectGroup,
@@ -178,6 +178,7 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
             onPlay = viewModel::play,
             onAddToGroup = viewModel::addTrackToGroup,
             onRemoveFromGroup = viewModel::removeTrackFromSelectedGroup,
+            onDeleteTrack = viewModel::deleteTrack,
             castConnected = cast.connectionStatus == CastConnectionStatus.CONNECTED,
             onOpenCast = {
                 viewModel.startCastDiscovery()
@@ -240,7 +241,7 @@ private fun LibraryScreen(
     playingUri: String?,
     artworkLoader: TrackArtworkLoader,
     modifier: Modifier,
-    onChooseFolder: () -> Unit,
+    onImportArchive: () -> Unit,
     onRescan: () -> Unit,
     onCreateGroup: () -> Unit,
     onSelectGroup: (Long?) -> Unit,
@@ -248,6 +249,7 @@ private fun LibraryScreen(
     onPlay: (TrackEntity) -> Unit,
     onAddToGroup: (String, Long) -> Unit,
     onRemoveFromGroup: (String) -> Unit,
+    onDeleteTrack: (TrackEntity) -> Unit,
     castConnected: Boolean,
     onOpenCast: () -> Unit,
 ) {
@@ -258,7 +260,7 @@ private fun LibraryScreen(
     ) {
         LibraryHeader(
             state = state,
-            onChooseFolder = onChooseFolder,
+            onImportArchive = onImportArchive,
             onRescan = onRescan,
             castConnected = castConnected,
             onOpenCast = onOpenCast,
@@ -273,7 +275,10 @@ private fun LibraryScreen(
         )
 
         if (state.tracks.isEmpty()) {
-            EmptyLibrary(hasFolder = state.folderUri != null, onChooseFolder = onChooseFolder)
+            EmptyLibrary(
+                importing = state.scanning,
+                onImportArchive = onImportArchive,
+            )
         } else {
             Row(
                 modifier = Modifier
@@ -295,6 +300,7 @@ private fun LibraryScreen(
                 onPlay = onPlay,
                 onAddToGroup = onAddToGroup,
                 onRemoveFromGroup = onRemoveFromGroup,
+                onDeleteTrack = onDeleteTrack,
             )
         }
     }
@@ -303,7 +309,7 @@ private fun LibraryScreen(
 @Composable
 private fun LibraryHeader(
     state: LibraryUiState,
-    onChooseFolder: () -> Unit,
+    onImportArchive: () -> Unit,
     onRescan: () -> Unit,
     castConnected: Boolean,
     onOpenCast: () -> Unit,
@@ -365,17 +371,18 @@ private fun LibraryHeader(
             }
             Spacer(Modifier.size(6.dp))
             IconButton(
-                onClick = onChooseFolder,
+                onClick = onImportArchive,
+                enabled = !state.scanning,
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = .78f)),
             ) {
-                Icon(Icons.Rounded.FolderOpen, contentDescription = "选择音乐目录")
+                Icon(Icons.Rounded.Archive, contentDescription = "导入音乐压缩包")
             }
             Spacer(Modifier.size(6.dp))
             IconButton(
                 onClick = onRescan,
-                enabled = state.folderUri != null && !state.scanning,
+                enabled = !state.scanning,
                 modifier = Modifier
                     .clip(CircleShape)
                     .background(MaterialTheme.colorScheme.surface.copy(alpha = .78f)),
@@ -642,6 +649,7 @@ private fun TrackList(
     onPlay: (TrackEntity) -> Unit,
     onAddToGroup: (String, Long) -> Unit,
     onRemoveFromGroup: (String) -> Unit,
+    onDeleteTrack: (TrackEntity) -> Unit,
 ) {
     LazyColumn(contentPadding = PaddingValues(bottom = 20.dp)) {
         items(tracks, key = TrackEntity::uri) { track ->
@@ -654,6 +662,7 @@ private fun TrackList(
                 onPlay = { onPlay(track) },
                 onAddToGroup = { onAddToGroup(track.uri, it) },
                 onRemoveFromGroup = { onRemoveFromGroup(track.uri) },
+                onDelete = { onDeleteTrack(track) },
             )
             HorizontalDivider(modifier = Modifier.padding(start = 90.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
         }
@@ -670,8 +679,10 @@ private fun TrackRow(
     onPlay: () -> Unit,
     onAddToGroup: (Long) -> Unit,
     onRemoveFromGroup: () -> Unit,
+    onDelete: () -> Unit,
 ) {
     var menuOpen by remember { mutableStateOf(false) }
+    var deleteConfirmationOpen by remember { mutableStateOf(false) }
     val titleColor by animateColorAsState(
         if (isPlaying) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
         label = "track title",
@@ -749,13 +760,49 @@ private fun TrackRow(
                 if (groups.isEmpty()) {
                     DropdownMenuItem(text = { Text("请先创建分组") }, onClick = { menuOpen = false }, enabled = false)
                 }
+                DropdownMenuItem(
+                    text = { Text("删除歌曲文件", color = MaterialTheme.colorScheme.error) },
+                    onClick = {
+                        menuOpen = false
+                        deleteConfirmationOpen = true
+                    },
+                )
             }
         }
+    }
+
+    if (deleteConfirmationOpen) {
+        AlertDialog(
+            onDismissRequest = { deleteConfirmationOpen = false },
+            title = { Text("删除《${track.title}》？") },
+            text = {
+                Text(
+                    if (track.lyricUri == null) {
+                        "歌曲文件将从设备中永久删除，此操作无法撤销。"
+                    } else {
+                        "歌曲文件和关联歌词将从设备中永久删除，此操作无法撤销。"
+                    },
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        deleteConfirmationOpen = false
+                        onDelete()
+                    },
+                ) {
+                    Text("永久删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { deleteConfirmationOpen = false }) { Text("取消") }
+            },
+        )
     }
 }
 
 @Composable
-private fun EmptyLibrary(hasFolder: Boolean, onChooseFolder: () -> Unit) {
+private fun EmptyLibrary(importing: Boolean, onImportArchive: () -> Unit) {
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -764,18 +811,17 @@ private fun EmptyLibrary(hasFolder: Boolean, onChooseFolder: () -> Unit) {
     ) {
         FanCoverPair(modifier = Modifier.align(Alignment.CenterHorizontally))
         Spacer(Modifier.height(26.dp))
-        Text(if (hasFolder) "此处暂时无曲" else "把喜欢的歌，藏在这里", style = MaterialTheme.typography.headlineSmall)
+        Text("把喜欢的歌，藏在这里", style = MaterialTheme.typography.headlineSmall)
         Spacer(Modifier.height(8.dp))
         Text(
-            if (hasFolder) "支持 MP3、M4A、FLAC、WAV、OGG 与 OPUS。"
-            else "选择银临音乐所在目录，小银子会读取曲目与同名 .lrc / .lrcx 歌词。",
+            "导入包含 MP3 和同名 .lrc / .lrcx 歌词的 ZIP 压缩包。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Spacer(Modifier.height(24.dp))
-        Button(onClick = onChooseFolder) {
-            Icon(Icons.Rounded.FolderOpen, null)
+        Button(onClick = onImportArchive, enabled = !importing) {
+            Icon(Icons.Rounded.Archive, null)
             Spacer(Modifier.size(8.dp))
-            Text(if (hasFolder) "换一个目录" else "选择音乐目录")
+            Text(if (importing) "正在导入" else "导入音乐压缩包")
         }
     }
 }

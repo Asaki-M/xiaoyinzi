@@ -145,6 +145,15 @@ class PlayerConnection(context: Context) : AutoCloseable {
         }
     }
 
+    fun removeFromQueue(trackUri: String) {
+        controller?.let { player ->
+            val index = (0 until player.mediaItemCount)
+                .firstOrNull { player.getMediaItemAt(it).mediaId == trackUri }
+                ?: return
+            player.removeMediaItem(index)
+        }
+    }
+
     fun cyclePlaybackMode() {
         controller?.let { player ->
             when (PlaybackMode.from(player.shuffleModeEnabled, player.repeatMode).next()) {

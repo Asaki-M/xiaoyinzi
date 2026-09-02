@@ -11,4 +11,12 @@ class LibraryScannerTest {
         assertTrue(isSupportedLyricExtension("LRCX"))
         assertFalse(isSupportedLyricExtension("txt"))
     }
+
+    @Test
+    fun ignoresMacOsMetadataPaths() {
+        assertTrue(isIgnoredLibraryPath("__MACOSX/album/._song.mp3"))
+        assertTrue(isIgnoredLibraryPath("album/._song.mp3"))
+        assertTrue(isIgnoredLibraryPath("album/.DS_Store"))
+        assertFalse(isIgnoredLibraryPath("album/song.mp3"))
+    }
 }

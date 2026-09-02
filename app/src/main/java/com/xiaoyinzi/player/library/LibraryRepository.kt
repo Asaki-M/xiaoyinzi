@@ -30,6 +30,8 @@ class LibraryRepository(private val database: AppDatabase) {
 
     suspend fun deleteGroup(groupId: Long) = dao.deleteGroup(groupId)
 
+    suspend fun deleteTrack(trackUri: String) = dao.deleteTracks(listOf(trackUri))
+
     suspend fun addToGroup(trackUri: String, groupId: Long) {
         dao.addTrackToGroup(TrackGroupCrossRef(trackUri, groupId))
     }

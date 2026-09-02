@@ -23,9 +23,9 @@ class MainActivity : ComponentActivity() {
         volumeControlStream = AudioManager.STREAM_MUSIC
         setContent {
             XiaoYinZiTheme {
-                val folderPicker = rememberLauncherForActivityResult(
-                    contract = ActivityResultContracts.OpenDocumentTree(),
-                    onResult = { uri -> uri?.let(viewModel::selectFolder) },
+                val archivePicker = rememberLauncherForActivityResult(
+                    contract = ActivityResultContracts.OpenDocument(),
+                    onResult = { uri -> uri?.let(viewModel::importArchive) },
                 )
                 val notificationPermission = rememberLauncherForActivityResult(
                     contract = ActivityResultContracts.RequestPermission(),
@@ -45,7 +45,15 @@ class MainActivity : ComponentActivity() {
 
                 PlayerApp(
                     viewModel = viewModel,
-                    onChooseFolder = { folderPicker.launch(null) },
+                    onImportArchive = {
+                        archivePicker.launch(
+                            arrayOf(
+                                "application/zip",
+                                "application/x-zip-compressed",
+                                "application/octet-stream",
+                            ),
+                        )
+                    },
                 )
             }
         }
