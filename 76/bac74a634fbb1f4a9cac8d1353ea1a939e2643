@@ -1,0 +1,63 @@
+TODO.md
+  h_8d050896203f0f 1
+app/src/test/java/com/xiaoyinzi/player/library/ManagedLibraryFilesTest.kt
+  s_eac3d6c495617c::t_e6624e7eed8d4d 1-41
+app/src/main/java/com/xiaoyinzi/player/library/LibraryScanner.kt
+  s_eac3d6c495617c::t_9c60c002610675 19-21,89-98
+  s_eac3d6c495617c::t_2b93bcfc449717 5,9,12,15-18,22-23,26-27,36,38-41,43-44,49-50,54,57-64,75-77,79-80
+app/src/main/java/com/xiaoyinzi/player/MainViewModel.kt
+  s_eac3d6c495617c::t_2b93bcfc449717 39-40,83,87-102,169-173,175-177,185-186
+  s_eac3d6c495617c::t_71bf27a0344aab 80,84,168,174
+  s_eac3d6c495617c::t_e6624e7eed8d4d 41,133-145
+  s_eac3d6c495617c::t_cd8ca90fd7aa91 146-147
+app/src/main/java/com/xiaoyinzi/player/XiaoYinZiApplication.kt
+  s_eac3d6c495617c::t_e6624e7eed8d4d 10,28
+  s_eac3d6c495617c::t_2b93bcfc449717 4,7,15-19,24-27
+app/src/test/java/com/xiaoyinzi/player/library/LibraryArchiveImporterTest.kt
+  s_eac3d6c495617c::t_2b93bcfc449717 1-36,54-60,62-75
+  s_eac3d6c495617c::t_9c60c002610675 37-53
+  s_eac3d6c495617c::t_71bf27a0344aab 61
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_eac3d6c495617c::t_71bf27a0344aab 278-281,375,805,821,824
+  s_eac3d6c495617c::t_2b93bcfc449717 48,132,173,244,263,312,374,380,385,814,817,822
+  s_eac3d6c495617c::t_e6624e7eed8d4d 181,252,303,652,665,682,685,763-769,773-800
+  s_eac3d6c495617c::t_df89707c7fa47a 801
+app/src/main/java/com/xiaoyinzi/player/playback/PlayerConnection.kt
+  s_eac3d6c495617c::t_e6624e7eed8d4d 148-156
+app/src/main/java/com/xiaoyinzi/player/library/ManagedLibraryFiles.kt
+  s_eac3d6c495617c::t_e6624e7eed8d4d 1-55
+app/src/main/java/com/xiaoyinzi/player/MainActivity.kt
+  s_eac3d6c495617c::t_2b93bcfc449717 26-28,48-56
+README.md
+  s_eac3d6c495617c::t_2b93bcfc449717 7-8,67
+  s_eac3d6c495617c::t_71d02e15073a9e 9
+app/src/main/java/com/xiaoyinzi/player/library/LibraryArchiveImporter.kt
+  s_eac3d6c495617c::t_71bf27a0344aab 9-11,52-54,57-74,77-82,89-90,92-104
+  s_eac3d6c495617c::t_9c60c002610675 48-49
+  s_eac3d6c495617c::t_2b93bcfc449717 1-8,12-47,50-51,55-56,75-76,83-88,91,105-126
+app/src/test/java/com/xiaoyinzi/player/library/LibraryScannerTest.kt
+  s_eac3d6c495617c::t_9c60c002610675 14-21
+app/src/main/java/com/xiaoyinzi/player/library/LibraryRepository.kt
+  s_eac3d6c495617c::t_e6624e7eed8d4d 33-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "76bac74a634fbb1f4a9cac8d1353ea1a939e2643",
+  "prompts": {},
+  "humans": {
+    "h_8d050896203f0f": {
+      "author": "qinghuan <1041220793@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_eac3d6c495617c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05fe7-7c01-7f10-aab7-1109b4873874",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
