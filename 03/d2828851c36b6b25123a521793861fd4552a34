@@ -1,0 +1,32 @@
+app/src/test/java/com/xiaoyinzi/player/playback/PlaybackModeTest.kt
+  s_eac3d6c495617c::t_3b35188109efc4 23-43
+app/src/main/java/com/xiaoyinzi/player/playback/PlaybackService.kt
+  s_eac3d6c495617c::t_3b35188109efc4 7,18-23,36-42,61,68-92
+TODO.md
+  h_8d050896203f0f 1-7
+app/src/main/java/com/xiaoyinzi/player/playback/PlayerConnection.kt
+  s_eac3d6c495617c::t_3b35188109efc4 7,42,64-82,84,183-194,205,208,216
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_eac3d6c495617c::t_3b35188109efc4 92,139,204,211,937,944,1002,1009,1058
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "03d2828851c36b6b25123a521793861fd4552a34",
+  "prompts": {},
+  "humans": {
+    "h_8d050896203f0f": {
+      "author": "qinghuan <1041220793@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_eac3d6c495617c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05fe7-7c01-7f10-aab7-1109b4873874",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
