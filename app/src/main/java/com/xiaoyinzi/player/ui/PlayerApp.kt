@@ -2,6 +2,7 @@ package com.xiaoyinzi.player.ui
 
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -32,6 +33,7 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.navigationBarsPadding
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
@@ -48,6 +50,7 @@ import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Archive
+import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.Computer
@@ -82,6 +85,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -623,25 +627,23 @@ private fun GroupSelector(
         )
         groups.forEach { group ->
             val artworkRes = group.albumArtworkRes()
-            FilterChip(
-                selected = selectedId == group.id,
-                onClick = { onSelect(group.id) },
-                label = { Text(group.name) },
-                leadingIcon = {
-                    if (artworkRes != null) {
-                        Image(
-                            painter = painterResource(artworkRes),
-                            contentDescription = "${group.name}专辑封面",
-                            contentScale = ContentScale.Crop,
-                            modifier = Modifier
-                                .size(30.dp)
-                                .clip(RoundedCornerShape(7.dp)),
-                        )
-                    } else {
+            if (group.isPreset && artworkRes != null) {
+                AlbumGroupBlock(
+                    group = group,
+                    artworkRes = artworkRes,
+                    selected = selectedId == group.id,
+                    onClick = { onSelect(group.id) },
+                )
+            } else {
+                FilterChip(
+                    selected = selectedId == group.id,
+                    onClick = { onSelect(group.id) },
+                    label = { Text(group.name) },
+                    leadingIcon = {
                         Icon(Icons.Rounded.LibraryMusic, null, Modifier.size(20.dp))
-                    }
-                },
-            )
+                    },
+                )
+            }
         }
         OutlinedButton(onClick = onCreate, contentPadding = PaddingValues(horizontal = 12.dp)) {
             Icon(Icons.Rounded.Add, null, Modifier.size(17.dp))
@@ -653,6 +655,90 @@ private fun GroupSelector(
                 Icon(Icons.Rounded.DeleteOutline, contentDescription = "删除当前分组")
             }
         }
+    }
+}
+
+@Composable
+private fun AlbumGroupBlock(
+    group: LibraryGroupUiState,
+    artworkRes: Int,
+    selected: Boolean,
+    onClick: () -> Unit,
+) {
+    val containerColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        label = "album group background",
+    )
+    val contentColor by animateColorAsState(
+        targetValue = if (selected) {
+            MaterialTheme.colorScheme.onPrimaryContainer
+        } else {
+            MaterialTheme.colorScheme.onSurfaceVariant
+        },
+        label = "album group content",
+    )
+
+    Box(modifier = Modifier.padding(top = 7.dp)) {
+        Surface(
+            onClick = onClick,
+            shape = RoundedCornerShape(14.dp),
+            color = containerColor,
+            contentColor = contentColor,
+            tonalElevation = if (selected) 3.dp else 0.dp,
+        ) {
+            Row(
+                modifier = Modifier.padding(start = 7.dp, top = 7.dp, end = 14.dp, bottom = 7.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Image(
+                    painter = painterResource(artworkRes),
+                    contentDescription = "${group.name}专辑封面",
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .size(34.dp)
+                        .clip(RoundedCornerShape(8.dp)),
+                )
+                Spacer(Modifier.size(9.dp))
+                Text(
+                    text = group.name,
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
+                )
+            }
+        }
+
+        AnimatedVisibility(
+            visible = selected,
+            modifier = Modifier
+                .align(Alignment.TopEnd)
+                .offset(x = (-7).dp, y = (-7).dp),
+            enter = fadeIn(tween(140)) + scaleIn(tween(180), initialScale = .6f),
+            exit = fadeOut(tween(100)) + scaleOut(tween(120), targetScale = .6f),
+        ) {
+            SelectedAlbumBadge()
+        }
+    }
+}
+
+@Composable
+private fun SelectedAlbumBadge() {
+    Box(
+        modifier = Modifier
+            .size(23.dp)
+            .clip(CircleShape)
+            .background(MaterialTheme.colorScheme.primary),
+        contentAlignment = Alignment.Center,
+    ) {
+        Icon(
+            imageVector = Icons.Rounded.AutoAwesome,
+            contentDescription = "当前专辑",
+            tint = MaterialTheme.colorScheme.onPrimary,
+            modifier = Modifier.size(14.dp),
+        )
     }
 }
 

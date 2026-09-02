@@ -4,7 +4,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 
 const val CAST_PROTOCOL_VERSION = 1
-const val CAST_SERVICE_TYPE = "_xiaoyinzi-lyrics._tcp."
+const val CAST_SERVICE_TYPE = "_xiaoyinzi-lyric._tcp"
+const val LEGACY_CAST_SERVICE_TYPE = "_xiaoyinzi-lyrics._tcp"
+val CAST_SERVICE_TYPES = listOf(CAST_SERVICE_TYPE, LEGACY_CAST_SERVICE_TYPE)
 const val MEDIA_EXTRA_LYRIC_URI = "com.xiaoyinzi.player.LYRIC_URI"
 
 val CastJson = Json {

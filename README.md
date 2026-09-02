@@ -71,6 +71,8 @@ Music/
 
 点击资料库右上角的投屏图标即可搜索同一局域网中的 Mac。Android 端以本机 `.lrc` / `.lrcx` 为歌词源，Mac 只接收歌曲名、歌词和播放位置，不需要另外准备同名歌词文件。
 
+Mac 的 Bonjour 实例名称可以直接使用电脑名称，Android 不会按名称过滤；双方的服务类型必须使用 `_xiaoyinzi-lyric._tcp`。
+
 当前仓库只实现 Android 端，Mac 菜单栏接收端可按 [Mac 实时歌词协议](mac-lyrics-protocol.md) 开发。没有运行 Mac 接收端时，搜索不到设备属于正常现象。
 
 ## 工程结构

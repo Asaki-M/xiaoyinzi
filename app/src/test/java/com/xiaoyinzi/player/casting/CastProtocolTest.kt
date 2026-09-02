@@ -44,7 +44,12 @@ class CastProtocolTest {
             json.encodeToString(HelloMessage(deviceId = "android-device")),
         ).jsonObject
 
-        assertEquals("_xiaoyinzi-lyrics._tcp.", CAST_SERVICE_TYPE)
+        assertEquals("_xiaoyinzi-lyric._tcp", CAST_SERVICE_TYPE)
+        assertEquals("_xiaoyinzi-lyrics._tcp", LEGACY_CAST_SERVICE_TYPE)
+        CAST_SERVICE_TYPES.forEach { type ->
+            assertFalse("Android NSD service types must not end with a dot", type.endsWith('.'))
+        }
+        assertEquals(15, CAST_SERVICE_TYPE.substringAfter('_').substringBefore("._tcp").length)
         assertEquals("hello", payload["type"]?.jsonPrimitive?.content)
         assertEquals(CAST_PROTOCOL_VERSION, payload["protocolVersion"]?.jsonPrimitive?.content?.toInt())
     }

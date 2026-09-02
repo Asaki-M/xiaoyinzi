@@ -100,6 +100,13 @@ class LyricsCastManager(context: Context) : AutoCloseable {
                 _state.update { it.copy(discovering = discovering) }
             }
         }
+        scope.launch {
+            discovery.error.collect { error ->
+                if (error != null && _state.value.connectionStatus != CastConnectionStatus.CONNECTED) {
+                    _state.update { it.copy(message = error) }
+                }
+            }
+        }
         if (_state.value.enabled) {
             startDiscovery()
             storedDevice()?.let(::reconnect)

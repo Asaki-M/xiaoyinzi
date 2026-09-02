@@ -7,7 +7,7 @@
 ```text
 Android 小银子                         macOS 菜单栏应用
       │                                      │
-      │  Bonjour 查找 _xiaoyinzi-lyrics._tcp │
+      │  Bonjour 查找 _xiaoyinzi-lyric._tcp  │
       │─────────────────────────────────────>│
       │            TCP 连接                  │
       │─────────────────────────────────────>│
@@ -29,16 +29,18 @@ Mac 发布：
 
 | 字段 | 值 |
 | --- | --- |
-| Service type | `_xiaoyinzi-lyrics._tcp.` |
+| Service type | `_xiaoyinzi-lyric._tcp` |
 | Domain | `local.` |
-| Service name | 建议使用 `小银子的 Mac` 或电脑名称 |
+| Service name | 任意可读名称，建议直接使用电脑名称 |
 | Port | Mac 监听器实际分配的 TCP 端口 |
 
 Swift 可使用 `Network.framework` 的 `NWListener`，并设置：
 
 ```swift
-listener.service = NWListener.Service(name: "小银子的 Mac", type: "_xiaoyinzi-lyrics._tcp")
+listener.service = NWListener.Service(name: Host.current().localizedName, type: "_xiaoyinzi-lyric._tcp")
 ```
+
+Android 不会按 Service name 过滤设备，因此 Mac 不需要叫“小银子的 Mac”。Service type 必须保持一致；其中 `xiaoyinzi-lyric` 正好 15 个字符，符合 Bonjour 服务类型长度限制。Android 暂时也会搜索旧的 `_xiaoyinzi-lyrics._tcp`，方便迁移，但 Mac 端应改用上面的新类型。
 
 ## 3. 首次连接和配对
 
@@ -165,4 +167,3 @@ Mac 可以发送：
 | TCP、配对、重连和同步 | `casting/LyricsCastManager.kt` |
 | 播放器状态接入 | `playback/PlaybackService.kt` |
 | 连接界面 | `ui/PlayerApp.kt` |
-
