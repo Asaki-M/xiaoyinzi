@@ -21,6 +21,8 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -96,6 +98,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
@@ -115,6 +118,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.xiaoyinzi.player.R
 import com.xiaoyinzi.player.LibraryUiState
+import com.xiaoyinzi.player.LibraryGroupUiState
+import com.xiaoyinzi.player.LibraryTrackUiState
 import com.xiaoyinzi.player.MainViewModel
 import com.xiaoyinzi.player.data.GroupSummary
 import com.xiaoyinzi.player.data.TrackEntity
@@ -244,7 +249,7 @@ private fun LibraryScreen(
     onImportArchive: () -> Unit,
     onRescan: () -> Unit,
     onCreateGroup: () -> Unit,
-    onSelectGroup: (Long?) -> Unit,
+    onSelectGroup: (String?) -> Unit,
     onDeleteGroup: () -> Unit,
     onPlay: (TrackEntity) -> Unit,
     onAddToGroup: (String, Long) -> Unit,
@@ -280,21 +285,20 @@ private fun LibraryScreen(
                 onImportArchive = onImportArchive,
             )
         } else {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 22.dp, vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-            ) {
-                Text("${state.tracks.size} 首歌曲", style = MaterialTheme.typography.labelMedium)
-                if (state.selectedGroupId != null) {
-                    Text("歌曲菜单可移出分组", style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
+            if (state.selectedCustomGroupId != null) {
+                Text(
+                    "歌曲菜单可移出分组",
+                    modifier = Modifier.padding(horizontal = 22.dp, vertical = 12.dp),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            } else {
+                Spacer(Modifier.height(8.dp))
             }
             TrackList(
                 tracks = state.tracks,
-                groups = state.groups,
-                selectedGroupId = state.selectedGroupId,
+                groups = state.customGroups,
+                selectedGroupId = state.selectedCustomGroupId,
                 playingUri = playingUri,
                 artworkLoader = artworkLoader,
                 onPlay = onPlay,
@@ -596,52 +600,75 @@ private fun castStatusText(state: CastUiState): String = when (state.connectionS
 }
 
 @Composable
+@OptIn(ExperimentalLayoutApi::class)
 private fun GroupSelector(
-    groups: List<GroupSummary>,
-    selectedId: Long?,
-    onSelect: (Long?) -> Unit,
+    groups: List<LibraryGroupUiState>,
+    selectedId: String?,
+    onSelect: (String?) -> Unit,
     onCreate: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    androidx.compose.foundation.lazy.LazyRow(
-        contentPadding = PaddingValues(horizontal = 18.dp, vertical = 14.dp),
+    FlowRow(
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 18.dp, vertical = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        item {
-            FilterChip(
-                selected = selectedId == null,
-                onClick = { onSelect(null) },
-                label = { Text("全部") },
-                leadingIcon = { Icon(Icons.Rounded.LibraryMusic, null, Modifier.size(17.dp)) },
-            )
-        }
-        items(groups, key = GroupSummary::id) { group ->
+        FilterChip(
+            selected = selectedId == null,
+            onClick = { onSelect(null) },
+            label = { Text("全部") },
+            leadingIcon = { Icon(Icons.Rounded.LibraryMusic, null, Modifier.size(20.dp)) },
+        )
+        groups.forEach { group ->
+            val artworkRes = group.albumArtworkRes()
             FilterChip(
                 selected = selectedId == group.id,
                 onClick = { onSelect(group.id) },
-                label = { Text("${group.name} · ${group.trackCount}") },
+                label = { Text(group.name) },
+                leadingIcon = {
+                    if (artworkRes != null) {
+                        Image(
+                            painter = painterResource(artworkRes),
+                            contentDescription = "${group.name}专辑封面",
+                            contentScale = ContentScale.Crop,
+                            modifier = Modifier
+                                .size(30.dp)
+                                .clip(RoundedCornerShape(7.dp)),
+                        )
+                    } else {
+                        Icon(Icons.Rounded.LibraryMusic, null, Modifier.size(20.dp))
+                    }
+                },
             )
         }
-        item {
-            OutlinedButton(onClick = onCreate, contentPadding = PaddingValues(horizontal = 12.dp)) {
-                Icon(Icons.Rounded.Add, null, Modifier.size(17.dp))
-                Spacer(Modifier.size(5.dp))
-                Text("新分组")
-            }
+        OutlinedButton(onClick = onCreate, contentPadding = PaddingValues(horizontal = 12.dp)) {
+            Icon(Icons.Rounded.Add, null, Modifier.size(17.dp))
+            Spacer(Modifier.size(5.dp))
+            Text("新分组")
         }
-        if (selectedId != null) {
-            item {
-                IconButton(onClick = onDelete) {
-                    Icon(Icons.Rounded.DeleteOutline, contentDescription = "删除当前分组")
-                }
+        if (groups.firstOrNull { it.id == selectedId }?.isPreset == false) {
+            IconButton(onClick = onDelete) {
+                Icon(Icons.Rounded.DeleteOutline, contentDescription = "删除当前分组")
             }
         }
     }
 }
 
+private fun LibraryGroupUiState.albumArtworkRes(): Int? = when (id) {
+    "preset:album:fu-cao-wei-ying" -> R.drawable.yinlin_fucao
+    "preset:album:pi-fu-du-hai" -> R.drawable.yinlin_pifu
+    "preset:album:liu-li" -> R.drawable.yinlin_liuli
+    "preset:album:li-di-shi-gong-fen-b-mian" -> R.drawable.yinlin_lidi
+    "preset:album:shan-se-you-wu-zhong" -> R.drawable.yinlin_shanse
+    "preset:album:lin-lin" -> R.drawable.yinlin_linlin
+    else -> null
+}
+
 @Composable
 private fun TrackList(
-    tracks: List<TrackEntity>,
+    tracks: List<LibraryTrackUiState>,
     groups: List<GroupSummary>,
     selectedGroupId: Long?,
     playingUri: String?,
@@ -652,17 +679,17 @@ private fun TrackList(
     onDeleteTrack: (TrackEntity) -> Unit,
 ) {
     LazyColumn(contentPadding = PaddingValues(bottom = 20.dp)) {
-        items(tracks, key = TrackEntity::uri) { track ->
+        items(tracks, key = LibraryTrackUiState::key) { item ->
             TrackRow(
-                track = track,
+                item = item,
                 groups = groups,
                 selectedGroupId = selectedGroupId,
-                isPlaying = playingUri == track.uri,
+                isPlaying = playingUri == item.track?.uri,
                 artworkLoader = artworkLoader,
-                onPlay = { onPlay(track) },
-                onAddToGroup = { onAddToGroup(track.uri, it) },
-                onRemoveFromGroup = { onRemoveFromGroup(track.uri) },
-                onDelete = { onDeleteTrack(track) },
+                onPlay = { item.track?.let(onPlay) },
+                onAddToGroup = { groupId -> item.track?.let { onAddToGroup(it.uri, groupId) } },
+                onRemoveFromGroup = { item.track?.let { onRemoveFromGroup(it.uri) } },
+                onDelete = { item.track?.let(onDeleteTrack) },
             )
             HorizontalDivider(modifier = Modifier.padding(start = 90.dp), color = MaterialTheme.colorScheme.outline.copy(alpha = .5f))
         }
@@ -671,7 +698,7 @@ private fun TrackList(
 
 @Composable
 private fun TrackRow(
-    track: TrackEntity,
+    item: LibraryTrackUiState,
     groups: List<GroupSummary>,
     selectedGroupId: Long?,
     isPlaying: Boolean,
@@ -681,6 +708,8 @@ private fun TrackRow(
     onRemoveFromGroup: () -> Unit,
     onDelete: () -> Unit,
 ) {
+    val track = item.track
+    val available = track != null
     var menuOpen by remember { mutableStateOf(false) }
     var deleteConfirmationOpen by remember { mutableStateOf(false) }
     val titleColor by animateColorAsState(
@@ -690,7 +719,8 @@ private fun TrackRow(
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onPlay)
+            .alpha(if (available) 1f else .42f)
+            .clickable(enabled = available, onClick = onPlay)
             .padding(start = 16.dp, end = 8.dp, top = 10.dp, bottom = 10.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -702,7 +732,7 @@ private fun TrackRow(
         )
         Spacer(Modifier.size(9.dp))
         TrackArtwork(
-            trackUri = track.uri,
+            trackUri = track?.uri,
             loader = artworkLoader,
             modifier = Modifier.size(52.dp),
         )
@@ -712,21 +742,21 @@ private fun TrackRow(
                 .padding(horizontal = 12.dp),
         ) {
             Text(
-                track.title,
+                item.title,
                 color = titleColor,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.titleLarge,
             )
             Text(
-                trackSupportingText(track),
+                track?.let(::trackSupportingText) ?: "本地暂无音乐文件",
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
-        if (track.lyricUri != null) {
+        if (track?.lyricUri != null) {
             Text(
                 "词",
                 color = MaterialTheme.colorScheme.primary,
@@ -734,7 +764,7 @@ private fun TrackRow(
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
         }
-        Box {
+        if (track != null) Box {
             IconButton(onClick = { menuOpen = true }) {
                 Icon(Icons.Rounded.MoreVert, contentDescription = "歌曲操作")
             }
@@ -774,10 +804,10 @@ private fun TrackRow(
     if (deleteConfirmationOpen) {
         AlertDialog(
             onDismissRequest = { deleteConfirmationOpen = false },
-            title = { Text("删除《${track.title}》？") },
+            title = { Text("删除《${item.title}》？") },
             text = {
                 Text(
-                    if (track.lyricUri == null) {
+                    if (track?.lyricUri == null) {
                         "歌曲文件将从设备中永久删除，此操作无法撤销。"
                     } else {
                         "歌曲文件和关联歌词将从设备中永久删除，此操作无法撤销。"

@@ -24,7 +24,7 @@ import com.xiaoyinzi.player.library.TrackArtworkLoader
 
 @Composable
 internal fun TrackArtwork(
-    trackUri: String,
+    trackUri: String?,
     loader: TrackArtworkLoader,
     modifier: Modifier = Modifier,
 ) {

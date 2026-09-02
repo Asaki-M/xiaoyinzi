@@ -9,6 +9,10 @@ import com.xiaoyinzi.player.data.TrackEntity
 import com.xiaoyinzi.player.casting.CastDevice
 import com.xiaoyinzi.player.library.LibraryRepository
 import com.xiaoyinzi.player.library.LibraryScanner
+import com.xiaoyinzi.player.library.SilverlinCatalog
+import com.xiaoyinzi.player.library.albumGroupId
+import com.xiaoyinzi.player.library.customGroupId
+import com.xiaoyinzi.player.library.customGroupIdOrNull
 import com.xiaoyinzi.player.lyrics.LrcxParser
 import com.xiaoyinzi.player.lyrics.LyricLine
 import com.xiaoyinzi.player.playback.PlayerConnection
@@ -23,12 +27,33 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 
 data class LibraryUiState(
-    val tracks: List<TrackEntity> = emptyList(),
-    val groups: List<GroupSummary> = emptyList(),
-    val selectedGroupId: Long? = null,
+    val tracks: List<LibraryTrackUiState> = emptyList(),
+    val groups: List<LibraryGroupUiState> = emptyList(),
+    val customGroups: List<GroupSummary> = emptyList(),
+    val selectedGroupId: String? = null,
+    val selectedCustomGroupId: Long? = null,
     val selectedGroupName: String? = null,
     val scanning: Boolean = false,
     val message: String? = null,
+)
+
+data class LibraryTrackUiState(
+    val key: String,
+    val title: String,
+    val track: TrackEntity?,
+)
+
+data class LibraryGroupUiState(
+    val id: String,
+    val name: String,
+    val isPreset: Boolean,
+)
+
+private data class LibraryContent(
+    val visibleTracks: List<TrackEntity>,
+    val allTracks: List<TrackEntity>,
+    val customGroups: List<GroupSummary>,
+    val selectedGroupId: String?,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -40,7 +65,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val managedMusicDirectory = app.managedMusicDirectory
     private val managedLibraryFiles = app.managedLibraryFiles
     private val lyricParser: LrcxParser = app.lyricParser
-    private val selectedGroupId = MutableStateFlow<Long?>(null)
+    private val selectedGroupId = MutableStateFlow<String?>(null)
     private val scanning = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
     val player = PlayerConnection(application)
@@ -56,21 +81,64 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())
 
     private val visibleTracks = selectedGroupId.flatMapLatest { groupId ->
-        if (groupId == null) repository.tracks else repository.tracksInGroup(groupId)
+        groupId?.customGroupIdOrNull()?.let(repository::tracksInGroup) ?: repository.tracks
+    }
+
+    private val libraryContent = combine(
+        visibleTracks,
+        repositorySnapshot,
+        repository.groups,
+        selectedGroupId,
+    ) { tracks, allTracks, groups, groupId ->
+        LibraryContent(tracks, allTracks, groups, groupId)
     }
 
     val uiState: StateFlow<LibraryUiState> = combine(
-        visibleTracks,
-        repository.groups,
-        selectedGroupId,
+        libraryContent,
         scanning,
         message,
-    ) { tracks, groups, groupId, isScanning, currentMessage ->
+    ) { content, isScanning, currentMessage ->
+        val presetGroups = SilverlinCatalog.albums.map { album ->
+            LibraryGroupUiState(
+                id = albumGroupId(album.id),
+                name = album.title,
+                isPreset = true,
+            )
+        }
+        val groups = presetGroups + content.customGroups.map { group ->
+            LibraryGroupUiState(
+                id = customGroupId(group.id),
+                name = group.name,
+                isPreset = false,
+            )
+        }
+        val displayTracks = when (content.selectedGroupId) {
+            null -> content.allTracks.map(TrackEntity::toLibraryTrackUiState)
+            else -> {
+                val album = SilverlinCatalog.albums.firstOrNull {
+                    albumGroupId(it.id) == content.selectedGroupId
+                }
+                if (album == null) {
+                    content.visibleTracks.map(TrackEntity::toLibraryTrackUiState)
+                } else {
+                    SilverlinCatalog.matchAlbum(album, content.allTracks).mapIndexed { index, match ->
+                        LibraryTrackUiState(
+                            key = match.track?.uri ?: "catalog:${album.id}:$index",
+                            title = match.title,
+                            track = match.track,
+                        )
+                    }
+                }
+            }
+        }
+        val selectedGroup = groups.firstOrNull { it.id == content.selectedGroupId }
         LibraryUiState(
-            tracks = tracks,
+            tracks = displayTracks,
             groups = groups,
-            selectedGroupId = groupId,
-            selectedGroupName = groups.firstOrNull { it.id == groupId }?.name,
+            customGroups = content.customGroups,
+            selectedGroupId = content.selectedGroupId,
+            selectedCustomGroupId = content.selectedGroupId?.customGroupIdOrNull(),
+            selectedGroupName = selectedGroup?.name,
             scanning = isScanning,
             message = currentMessage,
         )
@@ -102,19 +170,19 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun selectGroup(groupId: Long?) {
+    fun selectGroup(groupId: String?) {
         selectedGroupId.value = groupId
     }
 
     fun createGroup(name: String) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            selectedGroupId.value = repository.createGroup(name)
+            selectedGroupId.value = customGroupId(repository.createGroup(name))
         }
     }
 
     fun deleteSelectedGroup() {
-        val id = selectedGroupId.value ?: return
+        val id = selectedGroupId.value?.customGroupIdOrNull() ?: return
         viewModelScope.launch {
             repository.deleteGroup(id)
             selectedGroupId.value = null
@@ -126,7 +194,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun removeTrackFromSelectedGroup(trackUri: String) {
-        val groupId = selectedGroupId.value ?: return
+        val groupId = selectedGroupId.value?.customGroupIdOrNull() ?: return
         viewModelScope.launch { repository.removeFromGroup(trackUri, groupId) }
     }
 
@@ -146,7 +214,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun play(track: TrackEntity) {
-        player.play(track, uiState.value.tracks)
+        player.play(track, uiState.value.tracks.mapNotNull(LibraryTrackUiState::track))
     }
 
     fun clearMessage() {
@@ -184,3 +252,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 }
 
 private fun java.io.File.toUriString(): String = Uri.fromFile(this).toString()
+
+private fun TrackEntity.toLibraryTrackUiState(): LibraryTrackUiState = LibraryTrackUiState(
+    key = uri,
+    title = title,
+    track = this,
+)
