@@ -89,6 +89,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -135,6 +136,7 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
     val cast by viewModel.castState.collectAsStateWithLifecycle()
     var showCreateGroup by remember { mutableStateOf(false) }
     var showNowPlaying by remember { mutableStateOf(false) }
+    var showLyrics by rememberSaveable { mutableStateOf(false) }
     var showCastPanel by remember { mutableStateOf(false) }
     val snackbarHost = remember { SnackbarHostState() }
     val artworkLoader = remember {
@@ -199,12 +201,14 @@ fun PlayerApp(viewModel: MainViewModel, onChooseFolder: () -> Unit) {
         NowPlayingScreen(
             state = player,
             lyrics = lyrics,
+            showLyrics = showLyrics,
             artworkLoader = artworkLoader,
             onClose = { showNowPlaying = false },
             onTogglePlay = viewModel.player::togglePlayPause,
             onPrevious = viewModel.player::seekPrevious,
             onNext = viewModel.player::seekNext,
             onSeek = viewModel.player::seekTo,
+            onShowLyricsChange = { showLyrics = it },
             onCyclePlaybackMode = viewModel.player::cyclePlaybackMode,
             onSelectQueueItem = viewModel.player::playQueueItem,
         )
@@ -930,16 +934,17 @@ private fun CreateGroupDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit)
 private fun NowPlayingScreen(
     state: PlayerUiState,
     lyrics: List<LyricLine>,
+    showLyrics: Boolean,
     artworkLoader: TrackArtworkLoader,
     onClose: () -> Unit,
     onTogglePlay: () -> Unit,
     onPrevious: () -> Unit,
     onNext: () -> Unit,
     onSeek: (Long) -> Unit,
+    onShowLyricsChange: (Boolean) -> Unit,
     onCyclePlaybackMode: () -> Unit,
     onSelectQueueItem: (Int) -> Unit,
 ) {
-    var showLyrics by remember(state.currentTrackUri) { mutableStateOf(false) }
     var showQueue by remember { mutableStateOf(false) }
     val currentLine = lyrics.indexOfLast { it.timeMs <= state.positionMs }
     val lyricListState = rememberLazyListState()
@@ -994,14 +999,14 @@ private fun NowPlayingScreen(
                         lyrics = lyrics,
                         currentLine = currentLine,
                         listState = lyricListState,
-                        onShowVinyl = { showLyrics = false },
+                        onShowVinyl = { onShowLyricsChange(false) },
                     )
                 } else {
                     VinylStage(
                         trackUri = state.currentTrackUri,
                         isPlaying = state.isPlaying,
                         artworkLoader = artworkLoader,
-                        onShowLyrics = { showLyrics = true },
+                        onShowLyrics = { onShowLyricsChange(true) },
                     )
                 }
             }
@@ -1050,7 +1055,7 @@ private fun NowPlayingScreen(
                 currentIndex = state.currentQueueIndex,
                 artworkLoader = artworkLoader,
                 onSelect = { index ->
-                    onSelectQueueItem(index)
+                    onSelectQueueItem(state.queue[index].mediaItemIndex)
                     showQueue = false
                 },
             )

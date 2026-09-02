@@ -4,6 +4,7 @@ import android.content.ComponentName
 import android.content.Context
 import android.os.Bundle
 import androidx.core.content.ContextCompat
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -38,6 +39,7 @@ data class PlayerUiState(
 )
 
 data class QueueItemUiState(
+    val mediaItemIndex: Int,
     val uri: String,
     val title: String,
     val artist: String,
@@ -59,7 +61,27 @@ enum class PlaybackMode {
             repeatMode == Player.REPEAT_MODE_ONE -> REPEAT_ONE
             else -> SEQUENTIAL
         }
+
+        fun fromStoredValue(value: String?): PlaybackMode = entries
+            .firstOrNull { it.name == value }
+            ?: SEQUENTIAL
     }
+}
+
+internal fun buildQueueIndices(
+    mediaItemCount: Int,
+    firstIndex: Int,
+    nextIndex: (Int) -> Int,
+): List<Int> {
+    if (mediaItemCount == 0 || firstIndex == C.INDEX_UNSET) return emptyList()
+
+    val indices = ArrayList<Int>(mediaItemCount)
+    var index = firstIndex
+    while (index != C.INDEX_UNSET && index !in indices && indices.size < mediaItemCount) {
+        indices += index
+        index = nextIndex(index)
+    }
+    return indices
 }
 
 class PlayerConnection(context: Context) : AutoCloseable {
@@ -158,6 +180,18 @@ class PlayerConnection(context: Context) : AutoCloseable {
 
     private fun publishState(player: Player) {
         val metadata = player.mediaMetadata
+        val timeline = player.currentTimeline
+        val queueIndices = buildQueueIndices(
+            mediaItemCount = player.mediaItemCount,
+            firstIndex = timeline.getFirstWindowIndex(player.shuffleModeEnabled),
+            nextIndex = { index ->
+                timeline.getNextWindowIndex(
+                    index,
+                    Player.REPEAT_MODE_OFF,
+                    player.shuffleModeEnabled,
+                )
+            },
+        )
         _state.value = PlayerUiState(
             connected = true,
             isPlaying = player.isPlaying,
@@ -168,9 +202,10 @@ class PlayerConnection(context: Context) : AutoCloseable {
             positionMs = player.currentPosition.coerceAtLeast(0),
             durationMs = player.duration.coerceAtLeast(0),
             playbackMode = PlaybackMode.from(player.shuffleModeEnabled, player.repeatMode),
-            queue = (0 until player.mediaItemCount).map { index ->
+            queue = queueIndices.map { index ->
                 player.getMediaItemAt(index).let { item ->
                     QueueItemUiState(
+                        mediaItemIndex = index,
                         uri = item.mediaId,
                         title = item.mediaMetadata.title?.toString().orEmpty(),
                         artist = item.mediaMetadata.artist?.toString().orEmpty(),
@@ -178,7 +213,7 @@ class PlayerConnection(context: Context) : AutoCloseable {
                     )
                 }
             },
-            currentQueueIndex = player.currentMediaItemIndex.coerceAtLeast(0),
+            currentQueueIndex = queueIndices.indexOf(player.currentMediaItemIndex).coerceAtLeast(0),
         )
     }
 
