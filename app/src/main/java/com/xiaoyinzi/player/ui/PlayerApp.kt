@@ -50,7 +50,6 @@ import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Archive
-import androidx.compose.material.icons.rounded.AutoAwesome
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.Computer
@@ -73,7 +72,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -619,36 +617,46 @@ private fun GroupSelector(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        FilterChip(
+        GroupBlock(
+            label = "全部",
             selected = selectedId == null,
             onClick = { onSelect(null) },
-            label = { Text("全部") },
-            leadingIcon = { Icon(Icons.Rounded.LibraryMusic, null, Modifier.size(20.dp)) },
-        )
+        ) {
+            Icon(Icons.Rounded.LibraryMusic, contentDescription = null, Modifier.size(24.dp))
+        }
         groups.forEach { group ->
             val artworkRes = group.albumArtworkRes()
             if (group.isPreset && artworkRes != null) {
-                AlbumGroupBlock(
-                    group = group,
-                    artworkRes = artworkRes,
+                GroupBlock(
+                    label = group.name,
                     selected = selectedId == group.id,
                     onClick = { onSelect(group.id) },
-                )
+                ) {
+                    Image(
+                        painter = painterResource(artworkRes),
+                        contentDescription = "${group.name}专辑封面",
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(34.dp)
+                            .clip(RoundedCornerShape(8.dp)),
+                    )
+                }
             } else {
-                FilterChip(
+                GroupBlock(
+                    label = group.name,
                     selected = selectedId == group.id,
                     onClick = { onSelect(group.id) },
-                    label = { Text(group.name) },
-                    leadingIcon = {
-                        Icon(Icons.Rounded.LibraryMusic, null, Modifier.size(20.dp))
-                    },
-                )
+                ) {
+                    Icon(Icons.Rounded.LibraryMusic, contentDescription = null, Modifier.size(24.dp))
+                }
             }
         }
-        OutlinedButton(onClick = onCreate, contentPadding = PaddingValues(horizontal = 12.dp)) {
-            Icon(Icons.Rounded.Add, null, Modifier.size(17.dp))
-            Spacer(Modifier.size(5.dp))
-            Text("新分组")
+        GroupBlock(
+            label = "新分组",
+            selected = false,
+            onClick = onCreate,
+        ) {
+            Icon(Icons.Rounded.Add, contentDescription = null, Modifier.size(24.dp))
         }
         if (groups.firstOrNull { it.id == selectedId }?.isPreset == false) {
             IconButton(onClick = onDelete) {
@@ -659,11 +667,11 @@ private fun GroupSelector(
 }
 
 @Composable
-private fun AlbumGroupBlock(
-    group: LibraryGroupUiState,
-    artworkRes: Int,
+private fun GroupBlock(
+    label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    leadingContent: @Composable () -> Unit,
 ) {
     val containerColor by animateColorAsState(
         targetValue = if (selected) {
@@ -691,20 +699,18 @@ private fun AlbumGroupBlock(
             tonalElevation = if (selected) 3.dp else 0.dp,
         ) {
             Row(
-                modifier = Modifier.padding(start = 7.dp, top = 7.dp, end = 14.dp, bottom = 7.dp),
+                modifier = Modifier.padding(start = 7.dp, top = 7.dp, end = 28.dp, bottom = 7.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Image(
-                    painter = painterResource(artworkRes),
-                    contentDescription = "${group.name}专辑封面",
-                    contentScale = ContentScale.Crop,
-                    modifier = Modifier
-                        .size(34.dp)
-                        .clip(RoundedCornerShape(8.dp)),
-                )
+                Box(
+                    modifier = Modifier.size(34.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    leadingContent()
+                }
                 Spacer(Modifier.size(9.dp))
                 Text(
-                    text = group.name,
+                    text = label,
                     style = MaterialTheme.typography.labelLarge,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 )
@@ -715,32 +721,22 @@ private fun AlbumGroupBlock(
             visible = selected,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .offset(x = (-7).dp, y = (-7).dp),
+                .offset(x = 6.dp, y = (-9).dp),
             enter = fadeIn(tween(140)) + scaleIn(tween(180), initialScale = .6f),
             exit = fadeOut(tween(100)) + scaleOut(tween(120), targetScale = .6f),
         ) {
-            SelectedAlbumBadge()
+            SelectedGroupBadge()
         }
     }
 }
 
 @Composable
-private fun SelectedAlbumBadge() {
-    Box(
-        modifier = Modifier
-            .size(23.dp)
-            .clip(CircleShape)
-            .background(MaterialTheme.colorScheme.primary),
-        contentAlignment = Alignment.Center,
-    ) {
-        Icon(
-            imageVector = Icons.Rounded.AutoAwesome,
-            contentDescription = "当前专辑",
-            tint = MaterialTheme.colorScheme.onPrimary,
-            modifier = Modifier.size(14.dp),
-        )
-    }
-}
+private fun SelectedGroupBadge() = Image(
+    painter = painterResource(R.drawable.yinlin_album_selected_badge),
+    contentDescription = "当前分组",
+    contentScale = ContentScale.Fit,
+    modifier = Modifier.size(width = 28.dp, height = 38.dp),
+)
 
 private fun LibraryGroupUiState.albumArtworkRes(): Int? = when (id) {
     "preset:album:fu-cao-wei-ying" -> R.drawable.yinlin_fucao
