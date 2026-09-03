@@ -1,0 +1,30 @@
+TODO.md
+  h_8d050896203f0f 2,5-7
+app/build.gradle.kts
+  s_eac3d6c495617c::t_0b0cdcb699ea44 17-18,26
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_eac3d6c495617c::t_a1c1b1c78f5f9a 620-621,624-626,630-631,634-643,645-646,649-651,654-659,670-671,674,705-710,713,728,734-736,739
+  s_eac3d6c495617c::t_7372a0b9fe0adb 702
+  s_eac3d6c495617c::t_0e37ad840d4344 724,737-738
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "dd3f72333a1c0774bb9cd245eb6a198c55083612",
+  "prompts": {},
+  "humans": {
+    "h_8d050896203f0f": {
+      "author": "qinghuan <1041220793@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_eac3d6c495617c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a05fe7-7c01-7f10-aab7-1109b4873874",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
