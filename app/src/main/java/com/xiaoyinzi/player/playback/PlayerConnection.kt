@@ -84,6 +84,12 @@ internal fun buildQueueIndices(
     return indices
 }
 
+internal fun deferredQueueStartIndex(queueUris: List<String>, anchorUri: String?): Int {
+    if (queueUris.isEmpty()) return 0
+    val anchorIndex = queueUris.indexOf(anchorUri)
+    return if (anchorIndex in 0 until queueUris.lastIndex) anchorIndex + 1 else 0
+}
+
 class PlayerConnection(context: Context) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -91,8 +97,22 @@ class PlayerConnection(context: Context) : AutoCloseable {
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
     private var controller: MediaController? = null
     private var positionJob: Job? = null
+    private var deferredQueueReplacement: DeferredQueueReplacement? = null
 
     private val listener = object : Player.Listener {
+        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
+            if (
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
+                reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
+            ) {
+                applyDeferredQueueReplacement()
+            }
+        }
+
+        override fun onPlaybackStateChanged(playbackState: Int) {
+            if (playbackState == Player.STATE_ENDED) applyDeferredQueueReplacement()
+        }
+
         override fun onEvents(player: Player, events: Player.Events) = publishState(player)
     }
 
@@ -114,11 +134,30 @@ class PlayerConnection(context: Context) : AutoCloseable {
 
     fun play(track: TrackEntity, queue: List<TrackEntity>) {
         val player = controller ?: return
+        deferredQueueReplacement = null
         val mediaItems = queue.map { it.toMediaItem() }
         val selectedIndex = queue.indexOfFirst { it.uri == track.uri }.coerceAtLeast(0)
         player.setMediaItems(mediaItems, selectedIndex, 0)
         player.prepare()
         player.play()
+    }
+
+    fun deferQueueReplacement(queue: List<TrackEntity>, anchorUri: String) {
+        val player = controller ?: return
+        deferredQueueReplacement = DeferredQueueReplacement(
+            tracks = queue,
+            anchorUri = anchorUri,
+        )
+        if (
+            player.currentMediaItem?.mediaId != anchorUri ||
+            player.playbackState == Player.STATE_ENDED
+        ) {
+            applyDeferredQueueReplacement()
+        }
+    }
+
+    fun cancelDeferredQueueReplacement() {
+        deferredQueueReplacement = null
     }
 
     fun togglePlayPause() {
@@ -130,7 +169,7 @@ class PlayerConnection(context: Context) : AutoCloseable {
     }
 
     fun seekNext() {
-        controller?.seekToNextMediaItem()
+        if (!applyDeferredQueueReplacement()) controller?.seekToNextMediaItem()
     }
 
     fun seekPrevious() {
@@ -187,6 +226,28 @@ class PlayerConnection(context: Context) : AutoCloseable {
         }
     }
 
+    private fun applyDeferredQueueReplacement(): Boolean {
+        val replacement = deferredQueueReplacement ?: return false
+        val player = controller ?: return false
+        deferredQueueReplacement = null
+
+        if (replacement.tracks.isEmpty()) {
+            player.clearMediaItems()
+            return true
+        }
+
+        val shouldPlay = player.playWhenReady
+        val mediaItems = replacement.tracks.map { it.toMediaItem() }
+        val selectedIndex = deferredQueueStartIndex(
+            queueUris = replacement.tracks.map(TrackEntity::uri),
+            anchorUri = replacement.anchorUri,
+        )
+        player.setMediaItems(mediaItems, selectedIndex, 0)
+        player.prepare()
+        if (shouldPlay) player.play()
+        return true
+    }
+
     private fun publishState(player: Player) {
         val metadata = player.mediaMetadata
         val timeline = player.currentTimeline
@@ -227,12 +288,18 @@ class PlayerConnection(context: Context) : AutoCloseable {
     }
 
     override fun close() {
+        deferredQueueReplacement = null
         positionJob?.cancel()
         controller?.removeListener(listener)
         controller?.release()
         controller = null
         scope.cancel()
     }
+
+    private data class DeferredQueueReplacement(
+        val tracks: List<TrackEntity>,
+        val anchorUri: String,
+    )
 
     private fun TrackEntity.toMediaItem(): MediaItem = MediaItem.Builder()
         .setMediaId(uri)

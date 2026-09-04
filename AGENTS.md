@@ -32,3 +32,8 @@ Recent history uses Conventional Commit prefixes such as `feat:` followed by a s
 ## Security & Assets
 
 Do not commit signing keys, secrets, local SDK paths, or user media. The bundled artist images are for personal fan use; replace them with properly licensed assets before public or commercial distribution.
+
+## 构建 APK 版本
+- 遇到bug修复 / 删除功能，版本号 xx.xx.x+1
+- 添加新功能，版本号 xx.xx+1.0
+- 只有在用户说了要打包才去构建 apk 包

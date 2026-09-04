@@ -17,11 +17,13 @@ import com.xiaoyinzi.player.lyrics.LrcxParser
 import com.xiaoyinzi.player.lyrics.LyricLine
 import com.xiaoyinzi.player.playback.PlayerConnection
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flatMapLatest
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.mapLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
@@ -71,6 +73,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val player = PlayerConnection(application)
     val playerState = player.state
     val castState = app.lyricsCastManager.state
+    private var deferredQueueJob: Job? = null
 
     private val repositorySnapshot = repository.tracks
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
@@ -171,13 +174,30 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun selectGroup(groupId: String?) {
+        if (selectedGroupId.value == groupId) return
+
+        deferredQueueJob?.cancel()
+        player.cancelDeferredQueueReplacement()
         selectedGroupId.value = groupId
+        val anchorUri = playerState.value.currentTrackUri
+        if (anchorUri == null) {
+            return
+        }
+
+        deferredQueueJob = viewModelScope.launch {
+            val selectedState = uiState.first { it.selectedGroupId == groupId }
+            if (selectedGroupId.value != groupId) return@launch
+            player.deferQueueReplacement(
+                queue = selectedState.tracks.mapNotNull(LibraryTrackUiState::track),
+                anchorUri = anchorUri,
+            )
+        }
     }
 
     fun createGroup(name: String) {
         if (name.isBlank()) return
         viewModelScope.launch {
-            selectedGroupId.value = customGroupId(repository.createGroup(name))
+            selectGroup(customGroupId(repository.createGroup(name)))
         }
     }
 
@@ -185,7 +205,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         val id = selectedGroupId.value?.customGroupIdOrNull() ?: return
         viewModelScope.launch {
             repository.deleteGroup(id)
-            selectedGroupId.value = null
+            selectGroup(null)
         }
     }
 
@@ -214,6 +234,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     fun play(track: TrackEntity) {
+        deferredQueueJob?.cancel()
         player.play(track, uiState.value.tracks.mapNotNull(LibraryTrackUiState::track))
     }
 
@@ -246,6 +267,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     }
 
     override fun onCleared() {
+        deferredQueueJob?.cancel()
         player.close()
         super.onCleared()
     }

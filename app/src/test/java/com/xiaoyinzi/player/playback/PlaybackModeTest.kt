@@ -41,4 +41,37 @@ class PlaybackModeTest {
             ),
         )
     }
+
+    @Test
+    fun deferredQueueContinuesAfterCurrentTrackWhenItBelongsToNewQueue() {
+        assertEquals(
+            2,
+            deferredQueueStartIndex(
+                queueUris = listOf("first", "current", "next"),
+                anchorUri = "current",
+            ),
+        )
+    }
+
+    @Test
+    fun deferredQueueStartsAtBeginningWhenCurrentTrackIsOutsideNewQueue() {
+        assertEquals(
+            0,
+            deferredQueueStartIndex(
+                queueUris = listOf("first", "second"),
+                anchorUri = "current",
+            ),
+        )
+    }
+
+    @Test
+    fun deferredQueueWrapsToBeginningWhenCurrentTrackIsLast() {
+        assertEquals(
+            0,
+            deferredQueueStartIndex(
+                queueUris = listOf("first", "current"),
+                anchorUri = "current",
+            ),
+        )
+    }
 }
