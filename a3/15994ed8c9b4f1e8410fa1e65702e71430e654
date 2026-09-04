@@ -1,0 +1,35 @@
+AGENTS.md
+  h_8d050896203f0f 35-39
+app/src/main/java/com/xiaoyinzi/player/MainViewModel.kt
+  s_f4c385e1407ffa::t_ff61b47d6a8168 182-183,191-192
+  s_f4c385e1407ffa::t_60104a3c542f79 20,26,76,177-179,184-190,193-194,200,208,237,270
+  s_f4c385e1407ffa::t_0cc57f37080e1a 180
+app/src/main/java/com/xiaoyinzi/player/playback/PlayerConnection.kt
+  s_f4c385e1407ffa::t_25805cf5ecf70d 87-92,100,103-115,137,147-150,157-162,172
+  s_f4c385e1407ffa::t_ff61b47d6a8168 145-146,151-156
+  s_f4c385e1407ffa::t_a4ead702cd3e39 229-250,291,299-302
+  s_f4c385e1407ffa::t_1aa0e233cee76e 303
+app/src/test/java/com/xiaoyinzi/player/playback/PlaybackModeTest.kt
+  s_f4c385e1407ffa::t_c80a6d50d91fd2 44-76
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.0",
+  "base_commit_sha": "a315994ed8c9b4f1e8410fa1e65702e71430e654",
+  "prompts": {},
+  "humans": {
+    "h_8d050896203f0f": {
+      "author": "qinghuan <1041220793@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_f4c385e1407ffa": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a06a4a-31d3-76e3-a71b-227c52d7b5c7",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
