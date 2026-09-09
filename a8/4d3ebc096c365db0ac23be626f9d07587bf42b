@@ -1,0 +1,69 @@
+app/src/test/java/com/xiaoyinzi/player/library/SilverlinCatalogTest.kt
+  s_f58e1f8e934959::t_7f758ce1d9f047 65-74
+  s_f58e1f8e934959::t_ce4c74880fe9f2 34-43,46-63
+  s_f58e1f8e934959::t_0a9a80cb1ef68f 64
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_4b32bda51aa32b::t_57043aa9fd14b7 425-426,456,459-460,505-510,512-516,519-520,522-525,531-535,866
+  s_f58e1f8e934959::t_8734004324707d 846,848,857,902
+  s_f58e1f8e934959::t_40be6ee44fd43c 28,1564,1567,1569-1605,1715-1716
+  s_f58e1f8e934959::t_ceaa03823f4bfe 24,72,316,339,778,780-781,803,842-845,847,849-856,858-865,875,897-901,903-905
+  s_4b32bda51aa32b::t_95476d2e506226 107,517-518,526-529
+  s_f58e1f8e934959::t_ce4c74880fe9f2 954,956
+  s_f58e1f8e934959::t_0c561cda8c0f40 45,427,429-439,441-442,444,447-455,458,462-464,466-477,479-484,486-504,536-566
+  s_4b32bda51aa32b::t_57842352a0fba3 443
+  s_f58e1f8e934959::t_7f758ce1d9f047 819-823
+  s_f58e1f8e934959::t_9d122ef5f39816 123
+  s_4b32bda51aa32b::t_ab344d94392c9e 511,530
+  s_f58e1f8e934959::t_dfa1960431d1ea 20,870
+  s_4b32bda51aa32b::t_55a601236f0aab 440,445-446
+  s_f58e1f8e934959::t_eb9024254039fa 16-17,61,120,159,172-185,187-255,321,330,376,416-417,420-422,424
+  s_f58e1f8e934959::t_995149f5b00df5 428
+app/src/main/java/com/xiaoyinzi/player/library/SilverlinCatalog.kt
+  s_f58e1f8e934959::t_7f758ce1d9f047 149-153
+  s_f58e1f8e934959::t_ce4c74880fe9f2 56-66,86-95
+app/build.gradle.kts
+  s_4b32bda51aa32b::t_746c950e01e5c4 17-18
+silverlin-discography.md
+  s_f58e1f8e934959::t_ce4c74880fe9f2 3,19,21,26,56-62,78-83,126,128
+app/src/main/java/com/xiaoyinzi/player/MainViewModel.kt
+  s_f58e1f8e934959::t_7f758ce1d9f047 122,232
+  s_f58e1f8e934959::t_8734004324707d 238
+  s_f58e1f8e934959::t_ceaa03823f4bfe 4,6,40,73-76,78-80,113-115,163,231,233-237,239-249,321-323
+  s_f58e1f8e934959::t_0ded8e319f6837 116-121
+AGENTS.md
+  h_8d050896203f0f 40
+  s_f58e1f8e934959::t_6c1e79995f1cd5 39
+README.md
+  s_f58e1f8e934959::t_ec3eaa7a096492 29,32
+  s_f58e1f8e934959::t_8734004324707d 10
+  s_f58e1f8e934959::t_0c561cda8c0f40 11
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.2",
+  "base_commit_sha": "a84d3ebc096c365db0ac23be626f9d07587bf42b",
+  "prompts": {},
+  "humans": {
+    "h_8d050896203f0f": {
+      "author": "qinghuan <1041220793@qq.com>"
+    }
+  },
+  "sessions": {
+    "s_4b32bda51aa32b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a083fc-fe3c-78d2-8fc8-841f5685ef61",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    },
+    "s_f58e1f8e934959": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a079eb-1cbf-7412-bd11-676313e81440",
+        "model": "gpt-5.6-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
