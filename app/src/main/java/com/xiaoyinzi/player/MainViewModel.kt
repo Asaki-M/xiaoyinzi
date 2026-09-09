@@ -1,7 +1,9 @@
 package com.xiaoyinzi.player
 
 import android.app.Application
+import android.content.Context
 import android.net.Uri
+import androidx.core.content.edit
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.xiaoyinzi.player.data.GroupSummary
@@ -35,6 +37,7 @@ data class LibraryUiState(
     val selectedGroupId: String? = null,
     val selectedCustomGroupId: Long? = null,
     val selectedGroupName: String? = null,
+    val hiddenPresetGroupCount: Int = 0,
     val scanning: Boolean = false,
     val message: String? = null,
 )
@@ -67,7 +70,14 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     private val managedMusicDirectory = app.managedMusicDirectory
     private val managedLibraryFiles = app.managedLibraryFiles
     private val lyricParser: LrcxParser = app.lyricParser
+    private val libraryPreferences = application.getSharedPreferences(
+        LIBRARY_PREFERENCES_NAME,
+        Context.MODE_PRIVATE,
+    )
     private val selectedGroupId = MutableStateFlow<String?>(null)
+    private val hiddenPresetGroupIds = MutableStateFlow(
+        libraryPreferences.getStringSet(KEY_HIDDEN_PRESET_GROUP_IDS, emptySet()).orEmpty().toSet(),
+    )
     private val scanning = MutableStateFlow(false)
     private val message = MutableStateFlow<String?>(null)
     val player = PlayerConnection(application)
@@ -100,8 +110,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         libraryContent,
         scanning,
         message,
-    ) { content, isScanning, currentMessage ->
-        val presetGroups = SilverlinCatalog.albums.map { album ->
+        hiddenPresetGroupIds,
+    ) { content, isScanning, currentMessage, hiddenGroupIds ->
+        val allPresetGroups = SilverlinCatalog.albums.map { album ->
+            LibraryGroupUiState(
+                id = albumGroupId(album.id),
+                name = album.title,
+                isPreset = true,
+            )
+        }
+        val presetGroups = SilverlinCatalog.visibleAlbums(hiddenGroupIds).map { album ->
             LibraryGroupUiState(
                 id = albumGroupId(album.id),
                 name = album.title,
@@ -142,6 +160,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             selectedGroupId = content.selectedGroupId,
             selectedCustomGroupId = content.selectedGroupId?.customGroupIdOrNull(),
             selectedGroupName = selectedGroup?.name,
+            hiddenPresetGroupCount = allPresetGroups.count { it.id in hiddenGroupIds },
             scanning = isScanning,
             message = currentMessage,
         )
@@ -207,6 +226,25 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             repository.deleteGroup(id)
             selectGroup(null)
         }
+    }
+
+    fun hidePresetGroup(groupId: String) {
+        if (!SilverlinCatalog.containsGroup(groupId) || groupId in hiddenPresetGroupIds.value) return
+
+        val updatedIds = hiddenPresetGroupIds.value + groupId
+        libraryPreferences.edit { putStringSet(KEY_HIDDEN_PRESET_GROUP_IDS, updatedIds) }
+        hiddenPresetGroupIds.value = updatedIds
+        if (selectedGroupId.value == groupId) selectGroup(null)
+        message.value = "已删除预设分组，可点击“恢复预设”找回"
+    }
+
+    fun restorePresetGroups() {
+        val restoredCount = hiddenPresetGroupIds.value.size
+        if (restoredCount == 0) return
+
+        libraryPreferences.edit { remove(KEY_HIDDEN_PRESET_GROUP_IDS) }
+        hiddenPresetGroupIds.value = emptySet()
+        message.value = "已恢复 $restoredCount 个预设分组"
     }
 
     fun addTrackToGroup(trackUri: String, groupId: Long) {
@@ -280,3 +318,6 @@ private fun TrackEntity.toLibraryTrackUiState(): LibraryTrackUiState = LibraryTr
     title = title,
     track = this,
 )
+
+private const val LIBRARY_PREFERENCES_NAME = "library_preferences"
+private const val KEY_HIDDEN_PRESET_GROUP_IDS = "hidden_preset_group_ids"

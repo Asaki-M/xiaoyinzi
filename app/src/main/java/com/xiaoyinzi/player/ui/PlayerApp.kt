@@ -13,14 +13,19 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -37,6 +42,7 @@ import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
@@ -52,6 +58,7 @@ import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.CastConnected
+import androidx.compose.material.icons.rounded.Close
 import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
@@ -62,6 +69,7 @@ import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
 import androidx.compose.material.icons.rounded.Repeat
 import androidx.compose.material.icons.rounded.RepeatOne
+import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
@@ -96,6 +104,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -108,8 +117,10 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -145,6 +156,7 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
     var showNowPlaying by remember { mutableStateOf(false) }
     var showLyrics by rememberSaveable { mutableStateOf(false) }
     var showCastPanel by remember { mutableStateOf(false) }
+    var showLibraryActions by remember { mutableStateOf(false) }
     val snackbarHost = remember { SnackbarHostState() }
     val artworkLoader = remember {
         TrackArtworkLoader(viewModel.getApplication())
@@ -157,41 +169,90 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
         }
     }
 
-    Scaffold(
-        snackbarHost = { SnackbarHost(snackbarHost) },
-        contentWindowInsets = WindowInsets(0, 0, 0, 0),
-        containerColor = MaterialTheme.colorScheme.background,
-        bottomBar = {
-            if (player.currentTrackUri != null) {
-                MiniPlayer(
-                    state = player,
-                    artworkLoader = artworkLoader,
-                    onOpen = { showNowPlaying = true },
-                    onTogglePlay = viewModel.player::togglePlayPause,
-                )
-            }
-        },
-    ) { padding ->
-        LibraryScreen(
-            state = library,
-            playingUri = player.currentTrackUri,
-            artworkLoader = artworkLoader,
-            modifier = Modifier.padding(padding),
-            onImportArchive = onImportArchive,
-            onRescan = viewModel::rescan,
-            onCreateGroup = { showCreateGroup = true },
-            onSelectGroup = viewModel::selectGroup,
-            onDeleteGroup = viewModel::deleteSelectedGroup,
-            onPlay = viewModel::play,
-            onAddToGroup = viewModel::addTrackToGroup,
-            onRemoveFromGroup = viewModel::removeTrackFromSelectedGroup,
-            onDeleteTrack = viewModel::deleteTrack,
-            castConnected = cast.connectionStatus == CastConnectionStatus.CONNECTED,
-            onOpenCast = {
-                viewModel.startCastDiscovery()
-                showCastPanel = true
+    Box(modifier = Modifier.fillMaxSize()) {
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHost) },
+            contentWindowInsets = WindowInsets(0, 0, 0, 0),
+            containerColor = MaterialTheme.colorScheme.background,
+            bottomBar = {
+                if (player.currentTrackUri != null) {
+                    MiniPlayer(
+                        state = player,
+                        artworkLoader = artworkLoader,
+                        onOpen = { showNowPlaying = true },
+                        onTogglePlay = viewModel.player::togglePlayPause,
+                    )
+                }
             },
-        )
+        ) { padding ->
+            LibraryScreen(
+                state = library,
+                playingUri = player.currentTrackUri,
+                artworkLoader = artworkLoader,
+                modifier = Modifier.padding(padding),
+                onImportArchive = onImportArchive,
+                onCreateGroup = { showCreateGroup = true },
+                onSelectGroup = viewModel::selectGroup,
+                onDeleteGroup = viewModel::deleteSelectedGroup,
+                onHidePresetGroup = viewModel::hidePresetGroup,
+                onPlay = viewModel::play,
+                onAddToGroup = viewModel::addTrackToGroup,
+                onRemoveFromGroup = viewModel::removeTrackFromSelectedGroup,
+                onDeleteTrack = viewModel::deleteTrack,
+                onOpenActions = { showLibraryActions = true },
+            )
+        }
+
+        if (showLibraryActions) {
+            BackHandler { showLibraryActions = false }
+        }
+        AnimatedVisibility(
+            visible = showLibraryActions,
+            modifier = Modifier.matchParentSize(),
+            enter = fadeIn(tween(180)),
+            exit = fadeOut(tween(140)),
+        ) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black.copy(alpha = .38f))
+                    .clickable(
+                        interactionSource = remember { MutableInteractionSource() },
+                        indication = null,
+                        onClick = { showLibraryActions = false },
+                    ),
+            )
+        }
+        AnimatedVisibility(
+            visible = showLibraryActions,
+            modifier = Modifier.align(Alignment.CenterEnd),
+            enter = slideInHorizontally(tween(260)) { it },
+            exit = slideOutHorizontally(tween(220)) { it },
+        ) {
+            LibraryActionsSidebar(
+                scanning = library.scanning,
+                castConnected = cast.connectionStatus == CastConnectionStatus.CONNECTED,
+                hiddenPresetGroupCount = library.hiddenPresetGroupCount,
+                onClose = { showLibraryActions = false },
+                onOpenCast = {
+                    showLibraryActions = false
+                    viewModel.startCastDiscovery()
+                    showCastPanel = true
+                },
+                onImportArchive = {
+                    showLibraryActions = false
+                    onImportArchive()
+                },
+                onRescan = {
+                    showLibraryActions = false
+                    viewModel.rescan()
+                },
+                onRestorePresetGroups = {
+                    showLibraryActions = false
+                    viewModel.restorePresetGroups()
+                },
+            )
+        }
     }
 
     if (showCreateGroup) {
@@ -249,16 +310,15 @@ private fun LibraryScreen(
     artworkLoader: TrackArtworkLoader,
     modifier: Modifier,
     onImportArchive: () -> Unit,
-    onRescan: () -> Unit,
     onCreateGroup: () -> Unit,
     onSelectGroup: (String?) -> Unit,
     onDeleteGroup: () -> Unit,
+    onHidePresetGroup: (String) -> Unit,
     onPlay: (TrackEntity) -> Unit,
     onAddToGroup: (String, Long) -> Unit,
     onRemoveFromGroup: (String) -> Unit,
     onDeleteTrack: (TrackEntity) -> Unit,
-    castConnected: Boolean,
-    onOpenCast: () -> Unit,
+    onOpenActions: () -> Unit,
 ) {
     Column(
         modifier = modifier
@@ -267,10 +327,7 @@ private fun LibraryScreen(
     ) {
         LibraryHeader(
             state = state,
-            onImportArchive = onImportArchive,
-            onRescan = onRescan,
-            castConnected = castConnected,
-            onOpenCast = onOpenCast,
+            onOpenActions = onOpenActions,
         )
 
         GroupSelector(
@@ -279,6 +336,7 @@ private fun LibraryScreen(
             onSelect = onSelectGroup,
             onCreate = onCreateGroup,
             onDelete = onDeleteGroup,
+            onHidePreset = onHidePresetGroup,
         )
 
         if (state.tracks.isEmpty()) {
@@ -315,10 +373,7 @@ private fun LibraryScreen(
 @Composable
 private fun LibraryHeader(
     state: LibraryUiState,
-    onImportArchive: () -> Unit,
-    onRescan: () -> Unit,
-    castConnected: Boolean,
-    onOpenCast: () -> Unit,
+    onOpenActions: () -> Unit,
 ) {
     Box(
         modifier = Modifier
@@ -358,46 +413,157 @@ private fun LibraryHeader(
             )
         }
 
-        Row(
+        IconButton(
+            onClick = onOpenActions,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .padding(top = 8.dp, end = 8.dp),
+                .padding(top = 8.dp, end = 8.dp)
+                .clip(CircleShape)
+                .background(MaterialTheme.colorScheme.surface.copy(alpha = .78f)),
         ) {
-            IconButton(
-                onClick = onOpenCast,
+            Icon(Icons.Rounded.MoreVert, contentDescription = "打开功能侧边栏")
+        }
+    }
+}
+
+@Composable
+private fun LibraryActionsSidebar(
+    scanning: Boolean,
+    castConnected: Boolean,
+    hiddenPresetGroupCount: Int,
+    onClose: () -> Unit,
+    onOpenCast: () -> Unit,
+    onImportArchive: () -> Unit,
+    onRescan: () -> Unit,
+    onRestorePresetGroups: () -> Unit,
+) {
+    val panelShape = RoundedCornerShape(topStart = 10.dp, bottomStart = 10.dp)
+    Box(
+        modifier = Modifier
+            .width(280.dp)
+            .fillMaxHeight()
+            .shadow(18.dp, panelShape)
+            .clip(panelShape),
+    ) {
+        LibraryActionsSidebarBackdrop(Modifier.matchParentSize())
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .statusBarsPadding()
+                .navigationBarsPadding()
+                .padding(vertical = 14.dp),
+        ) {
+            Box(
                 modifier = Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = .78f)),
+                    .fillMaxWidth()
+                    .padding(end = 10.dp),
+                contentAlignment = Alignment.CenterEnd,
             ) {
-                Icon(
-                    if (castConnected) Icons.Rounded.CastConnected else Icons.Rounded.Cast,
-                    contentDescription = "Mac 实时歌词",
-                    tint = if (castConnected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                IconButton(onClick = onClose) {
+                    Icon(Icons.Rounded.Close, contentDescription = "关闭功能侧边栏")
+                }
+            }
+            SidebarAction(
+                icon = if (castConnected) Icons.Rounded.CastConnected else Icons.Rounded.Cast,
+                title = "Mac 实时歌词",
+                supportingText = if (castConnected) "已连接" else "发现并连接同一网络中的 Mac",
+                accent = castConnected,
+                onClick = onOpenCast,
+            )
+            SidebarAction(
+                icon = Icons.Rounded.Archive,
+                title = "导入音乐",
+                supportingText = "导入包含 MP3 和歌词的 ZIP 压缩包",
+                enabled = !scanning,
+                onClick = onImportArchive,
+            )
+            SidebarAction(
+                icon = Icons.Rounded.Refresh,
+                title = "重新扫描",
+                supportingText = if (scanning) "正在扫描音乐目录" else "重新读取本地音乐文件",
+                enabled = !scanning,
+                onClick = onRescan,
+            )
+            if (hiddenPresetGroupCount > 0) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant,
+                )
+                SidebarAction(
+                    icon = Icons.Rounded.Restore,
+                    title = "恢复预设分组",
+                    supportingText = "找回已删除的 $hiddenPresetGroupCount 个专辑分组",
+                    onClick = onRestorePresetGroups,
                 )
             }
-            Spacer(Modifier.size(6.dp))
-            IconButton(
-                onClick = onImportArchive,
-                enabled = !state.scanning,
+        }
+    }
+}
+
+@Composable
+private fun LibraryActionsSidebarBackdrop(modifier: Modifier = Modifier) {
+    val surface = MaterialTheme.colorScheme.surface
+    Box(modifier = modifier.background(surface)) {
+        Box(
+            modifier = Modifier
+                .align(Alignment.BottomCenter)
+                .fillMaxWidth()
+                .fillMaxHeight(.95f),
+        ) {
+            Image(
+                painter = painterResource(R.drawable.yinlin_sidebar),
+                contentDescription = null,
+                modifier = Modifier.matchParentSize(),
+                contentScale = ContentScale.Crop,
+                alignment = BiasAlignment(horizontalBias = .65f, verticalBias = 1f),
+            )
+            Box(
                 modifier = Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = .78f)),
-            ) {
-                Icon(Icons.Rounded.Archive, contentDescription = "导入音乐压缩包")
-            }
-            Spacer(Modifier.size(6.dp))
-            IconButton(
-                onClick = onRescan,
-                enabled = !state.scanning,
-                modifier = Modifier
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.surface.copy(alpha = .78f)),
-            ) {
-                if (state.scanning) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                } else {
-                    Icon(Icons.Rounded.Refresh, contentDescription = "重新扫描")
-                }
+                    .matchParentSize()
+                    .background(
+                        Brush.verticalGradient(
+                            0f to surface,
+                            .12f to surface.copy(alpha = .96f),
+                            .32f to surface.copy(alpha = .78f),
+                            .55f to surface.copy(alpha = .30f),
+                            .78f to surface.copy(alpha = .08f),
+                            1f to Color.Transparent,
+                        ),
+                    ),
+            )
+        }
+    }
+}
+
+@Composable
+private fun SidebarAction(
+    icon: ImageVector,
+    title: String,
+    supportingText: String,
+    enabled: Boolean = true,
+    accent: Boolean = false,
+    onClick: () -> Unit,
+) {
+    Surface(
+        onClick = onClick,
+        enabled = enabled,
+        color = Color.Transparent,
+        contentColor = if (accent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 15.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Icon(icon, contentDescription = null, modifier = Modifier.size(26.dp))
+            Column(modifier = Modifier.padding(start = 16.dp)) {
+                Text(title, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    supportingText,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall,
+                )
             }
         }
     }
@@ -609,7 +775,10 @@ private fun GroupSelector(
     onSelect: (String?) -> Unit,
     onCreate: () -> Unit,
     onDelete: () -> Unit,
+    onHidePreset: (String) -> Unit,
 ) {
+    var presetPendingDeletion by remember { mutableStateOf<LibraryGroupUiState?>(null) }
+
     FlowRow(
         modifier = Modifier
             .fillMaxWidth()
@@ -631,6 +800,7 @@ private fun GroupSelector(
                     label = group.name,
                     selected = selectedId == group.id,
                     onClick = { onSelect(group.id) },
+                    onLongClick = { presetPendingDeletion = group },
                 ) {
                     Image(
                         painter = painterResource(artworkRes),
@@ -646,6 +816,11 @@ private fun GroupSelector(
                     label = group.name,
                     selected = selectedId == group.id,
                     onClick = { onSelect(group.id) },
+                    onLongClick = if (group.isPreset) {
+                        { presetPendingDeletion = group }
+                    } else {
+                        null
+                    },
                 ) {
                     Icon(Icons.Rounded.LibraryMusic, contentDescription = null, Modifier.size(24.dp))
                 }
@@ -664,13 +839,40 @@ private fun GroupSelector(
             }
         }
     }
+
+    presetPendingDeletion?.let { group ->
+        AlertDialog(
+            onDismissRequest = { presetPendingDeletion = null },
+            title = { Text("删除预设分组？") },
+            text = {
+                Text("将删除预设分组《${group.name}》，不会删除设备中的歌曲。之后可以通过“恢复预设”找回。")
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        onHidePreset(group.id)
+                        presetPendingDeletion = null
+                    },
+                ) {
+                    Text("删除", color = MaterialTheme.colorScheme.error)
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { presetPendingDeletion = null }) { Text("取消") }
+            },
+            shape = RoundedCornerShape(28.dp),
+            containerColor = MaterialTheme.colorScheme.surface,
+        )
+    }
 }
 
 @Composable
+@OptIn(ExperimentalFoundationApi::class)
 private fun GroupBlock(
     label: String,
     selected: Boolean,
     onClick: () -> Unit,
+    onLongClick: (() -> Unit)? = null,
     leadingContent: @Composable () -> Unit,
 ) {
     val containerColor by animateColorAsState(
@@ -692,7 +894,15 @@ private fun GroupBlock(
 
     Box(modifier = Modifier.padding(top = 7.dp)) {
         Surface(
-            onClick = onClick,
+            modifier = if (onLongClick == null) {
+                Modifier.clickable(onClick = onClick)
+            } else {
+                Modifier.combinedClickable(
+                    onClick = onClick,
+                    onLongClickLabel = "删除预设分组",
+                    onLongClick = onLongClick,
+                )
+            },
             shape = RoundedCornerShape(14.dp),
             color = containerColor,
             contentColor = contentColor,
@@ -741,7 +951,9 @@ private fun SelectedGroupBadge() = Image(
 private fun LibraryGroupUiState.albumArtworkRes(): Int? = when (id) {
     "preset:album:fu-cao-wei-ying" -> R.drawable.yinlin_fucao
     "preset:album:pi-fu-du-hai" -> R.drawable.yinlin_pifu
+    "preset:album:feng-hua-xue-yue" -> R.drawable.yinlin_fenghua
     "preset:album:liu-li" -> R.drawable.yinlin_liuli
+    "preset:album:li-di-shi-gong-fen-a-mian" -> R.drawable.yinlin_lidi_a
     "preset:album:li-di-shi-gong-fen-b-mian" -> R.drawable.yinlin_lidi
     "preset:album:shan-se-you-wu-zhong" -> R.drawable.yinlin_shanse
     "preset:album:lin-lin" -> R.drawable.yinlin_linlin
@@ -1106,9 +1318,6 @@ private fun NowPlayingScreen(
     var showQueue by remember { mutableStateOf(false) }
     val currentLine = lyrics.indexOfLast { it.timeMs <= state.positionMs }
     val lyricListState = rememberLazyListState()
-    LaunchedEffect(showLyrics, currentLine) {
-        if (showLyrics && currentLine >= 0) lyricListState.animateScrollToItem(currentLine, -120)
-    }
 
     Box(
         modifier = Modifier
@@ -1352,31 +1561,48 @@ private fun LyricsStage(
                 )
             }
         } else {
-            LazyColumn(
-                state = listState,
+            BoxWithConstraints(
                 modifier = Modifier
                     .weight(1f)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClickLabel = "返回唱片",
-                        onClick = onShowVinyl,
-                    ),
-                contentPadding = PaddingValues(vertical = 44.dp),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
+                    .fillMaxWidth(),
             ) {
-                items(lyrics.size) { index ->
-                    val line = lyrics[index]
-                    Text(
-                        text = line.text.ifBlank { "♪" },
-                        modifier = Modifier.fillMaxWidth(),
-                        textAlign = TextAlign.Center,
-                        color = if (index == currentLine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        fontWeight = if (index == currentLine) FontWeight.Bold else FontWeight.Normal,
-                        style = if (index == currentLine) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
-                    )
+                val focusPadding = maxHeight * ACTIVE_LYRIC_POSITION
+                val focusOffset = with(LocalDensity.current) { focusPadding.roundToPx() }
+
+                LaunchedEffect(currentLine, focusOffset) {
+                    if (currentLine >= 0) {
+                        listState.animateScrollToItem(currentLine, -focusOffset)
+                    }
+                }
+
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .clip(RoundedCornerShape(24.dp))
+                        .clickable(
+                            interactionSource = interactionSource,
+                            indication = null,
+                            onClickLabel = "返回唱片",
+                            onClick = onShowVinyl,
+                        ),
+                    contentPadding = PaddingValues(
+                        top = focusPadding,
+                        bottom = maxHeight - focusPadding,
+                    ),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    items(lyrics.size) { index ->
+                        val line = lyrics[index]
+                        Text(
+                            text = line.text.ifBlank { "♪" },
+                            modifier = Modifier.fillMaxWidth(),
+                            textAlign = TextAlign.Center,
+                            color = if (index == currentLine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                            fontWeight = if (index == currentLine) FontWeight.Bold else FontWeight.Normal,
+                            style = if (index == currentLine) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
+                        )
+                    }
                 }
             }
         }
@@ -1486,3 +1712,5 @@ private fun playerSupportingText(album: String, artist: String): String = listOf
     album.takeIf(String::isNotBlank)?.let { "《$it》" },
     artist.takeIf { it.isNotBlank() && it != "未知音乐人" },
 ).joinToString("  ·  ")
+
+private const val ACTIVE_LYRIC_POSITION = .42f

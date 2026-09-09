@@ -1,6 +1,6 @@
 # 银临预设分组数据
 
-更新时间：2026-09-02
+更新时间：2026-09-07
 
 ## 收录口径
 
@@ -16,12 +16,14 @@
 |---|---|---:|---:|
 | `preset:album:fu-cao-wei-ying` | 腐草为萤 | 2013 | 11 |
 | `preset:album:pi-fu-du-hai` | 蚍蜉渡海 | 2017 | 11 |
+| `preset:album:feng-hua-xue-yue` | 风花雪月 | 2019 | 4 |
 | `preset:album:liu-li` | 琉璃 | 2020 | 12 |
+| `preset:album:li-di-shi-gong-fen-a-mian` | 离地十公分·A面 | 2022 | 3 |
 | `preset:album:li-di-shi-gong-fen-b-mian` | 离地十公分·B面 | 2022 | 4 |
 | `preset:album:shan-se-you-wu-zhong` | 山色有无中 | 2025 | 12 |
 | `preset:album:lin-lin` | 粼粼 | 2025 | 4 |
 
-合计：6 个专辑分组，54 首预设曲目。
+合计：8 个专辑分组，61 首预设曲目。
 
 ## 腐草为萤
 
@@ -51,6 +53,13 @@
 10. 卑微情书
 11. 说余梦
 
+## 风花雪月
+
+1. 无题雪
+2. 珍珠
+3. 月球
+4. 焦骨
+
 ## 琉璃
 
 1. 亲爱的瑞秋
@@ -65,6 +74,12 @@
 10. 白噪音
 11. 无人生还
 12. 终身成就
+
+## 离地十公分·A面
+
+1. 你是
+2. 眉南边
+3. 一命矣
 
 ## 离地十公分·B面
 
@@ -108,7 +123,9 @@
 - [Apple Music：银临的专辑](https://music.apple.com/cn/artist/%E9%93%B6%E4%B8%B4/1340827642/full-albums)
 - [银临官方频道：《腐草为萤》专辑系列](https://www.youtube.com/watch?v=PTc8kHb6oYM)
 - [Apple Music：《蚍蜉渡海》](https://music.apple.com/cn/album/%E8%9A%8D%E8%9C%89%E6%B8%A1%E6%B5%B7/1600041903)
+- [豆瓣音乐：《风花雪月》](https://music.douban.com/subject/35389086/)
 - [LINE MUSIC：《琉璃》](https://music-tw.line.me/album/6922730)
+- [Spotify：《离地十公分·A面》](https://open.spotify.com/album/62oVmMsvMnmtHpq9J91JTY)
 - [Apple Music：《离地十公分·B面》](https://music.apple.com/cn/album/%E9%9B%A2%E5%9C%B0%E5%8D%81%E5%85%AC%E5%88%86-b%E9%9D%A2/1654449998)
 - [MusicBrainz：《山色有无中》正式发行曲目](https://musicbrainz.org/release/4fab7d24-1225-4349-887b-7bf621e9cf80)
 - [Apple Music：《粼粼》](https://music.apple.com/cn/album/%E7%B2%BC%E7%B2%BC/6782432873)

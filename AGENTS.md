@@ -37,3 +37,4 @@ Do not commit signing keys, secrets, local SDK paths, or user media. The bundled
 - 遇到bug修复 / 删除功能，版本号 xx.xx.x+1
 - 添加新功能，版本号 xx.xx+1.0
 - 只有在用户说了要打包才去构建 apk 包
+- 版本号更新：只有说了去打包时候才去更新版本号，不要每次修改都去更新一下版本号

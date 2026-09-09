@@ -54,6 +54,17 @@ object SilverlinCatalog {
             ),
         ),
         PresetAlbum(
+            id = "feng-hua-xue-yue",
+            title = "风花雪月",
+            year = 2019,
+            tracks = listOf(
+                "无题雪",
+                "珍珠",
+                "月球",
+                "焦骨",
+            ),
+        ),
+        PresetAlbum(
             id = "liu-li",
             title = "琉璃",
             year = 2020,
@@ -70,6 +81,16 @@ object SilverlinCatalog {
                 "白噪音",
                 "无人生还",
                 "终身成就",
+            ),
+        ),
+        PresetAlbum(
+            id = "li-di-shi-gong-fen-a-mian",
+            title = "离地十公分·A面",
+            year = 2022,
+            tracks = listOf(
+                "你是",
+                "眉南边",
+                "一命矣",
             ),
         ),
         PresetAlbum(
@@ -125,6 +146,11 @@ object SilverlinCatalog {
         }
     }
 
+    fun visibleAlbums(hiddenGroupIds: Set<String>): List<PresetAlbum> = albums.filterNot { album ->
+        albumGroupId(album.id) in hiddenGroupIds
+    }
+
+    fun containsGroup(groupId: String): Boolean = albums.any { albumGroupId(it.id) == groupId }
 }
 
 internal fun normalizedTrackTitle(title: String): String = title
