@@ -120,7 +120,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
@@ -782,16 +781,16 @@ private fun GroupSelector(
     FlowRow(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(horizontal = 18.dp, vertical = 14.dp),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .padding(horizontal = 18.dp, vertical = 8.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+        verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         GroupBlock(
             label = "全部",
             selected = selectedId == null,
             onClick = { onSelect(null) },
         ) {
-            Icon(Icons.Rounded.LibraryMusic, contentDescription = null, Modifier.size(24.dp))
+            Icon(Icons.Rounded.LibraryMusic, contentDescription = null, Modifier.size(20.dp))
         }
         groups.forEach { group ->
             val artworkRes = group.albumArtworkRes()
@@ -807,8 +806,8 @@ private fun GroupSelector(
                         contentDescription = "${group.name}专辑封面",
                         contentScale = ContentScale.Crop,
                         modifier = Modifier
-                            .size(34.dp)
-                            .clip(RoundedCornerShape(8.dp)),
+                            .size(24.dp)
+                            .clip(RoundedCornerShape(5.dp)),
                     )
                 }
             } else {
@@ -822,7 +821,7 @@ private fun GroupSelector(
                         null
                     },
                 ) {
-                    Icon(Icons.Rounded.LibraryMusic, contentDescription = null, Modifier.size(24.dp))
+                    Icon(Icons.Rounded.LibraryMusic, contentDescription = null, Modifier.size(20.dp))
                 }
             }
         }
@@ -831,7 +830,7 @@ private fun GroupSelector(
             selected = false,
             onClick = onCreate,
         ) {
-            Icon(Icons.Rounded.Add, contentDescription = null, Modifier.size(24.dp))
+            Icon(Icons.Rounded.Add, contentDescription = null, Modifier.size(20.dp))
         }
         if (groups.firstOrNull { it.id == selectedId }?.isPreset == false) {
             IconButton(onClick = onDelete) {
@@ -892,7 +891,7 @@ private fun GroupBlock(
         label = "album group content",
     )
 
-    Box(modifier = Modifier.padding(top = 7.dp)) {
+    Box(modifier = Modifier.padding(top = 4.dp)) {
         Surface(
             modifier = if (onLongClick == null) {
                 Modifier.clickable(onClick = onClick)
@@ -903,25 +902,25 @@ private fun GroupBlock(
                     onLongClick = onLongClick,
                 )
             },
-            shape = RoundedCornerShape(14.dp),
+            shape = RoundedCornerShape(8.dp),
             color = containerColor,
             contentColor = contentColor,
             tonalElevation = if (selected) 3.dp else 0.dp,
         ) {
             Row(
-                modifier = Modifier.padding(start = 7.dp, top = 7.dp, end = 28.dp, bottom = 7.dp),
+                modifier = Modifier.padding(start = 5.dp, top = 5.dp, end = 18.dp, bottom = 5.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(
-                    modifier = Modifier.size(34.dp),
+                    modifier = Modifier.size(24.dp),
                     contentAlignment = Alignment.Center,
                 ) {
                     leadingContent()
                 }
-                Spacer(Modifier.size(9.dp))
+                Spacer(Modifier.size(6.dp))
                 Text(
                     text = label,
-                    style = MaterialTheme.typography.labelLarge,
+                    style = MaterialTheme.typography.labelMedium,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 )
             }
@@ -931,7 +930,7 @@ private fun GroupBlock(
             visible = selected,
             modifier = Modifier
                 .align(Alignment.TopEnd)
-                .offset(x = 6.dp, y = (-9).dp),
+                .offset(x = 3.dp, y = (-5).dp),
             enter = fadeIn(tween(140)) + scaleIn(tween(180), initialScale = .6f),
             exit = fadeOut(tween(100)) + scaleOut(tween(120), targetScale = .6f),
         ) {
@@ -945,7 +944,7 @@ private fun SelectedGroupBadge() = Image(
     painter = painterResource(R.drawable.yinlin_album_selected_badge),
     contentDescription = "当前分组",
     contentScale = ContentScale.Fit,
-    modifier = Modifier.size(width = 28.dp, height = 38.dp),
+    modifier = Modifier.size(width = 20.dp, height = 27.dp),
 )
 
 private fun LibraryGroupUiState.albumArtworkRes(): Int? = when (id) {
@@ -1567,11 +1566,11 @@ private fun LyricsStage(
                     .fillMaxWidth(),
             ) {
                 val focusPadding = maxHeight * ACTIVE_LYRIC_POSITION
-                val focusOffset = with(LocalDensity.current) { focusPadding.roundToPx() }
 
-                LaunchedEffect(currentLine, focusOffset) {
+                LaunchedEffect(currentLine, focusPadding) {
                     if (currentLine >= 0) {
-                        listState.animateScrollToItem(currentLine, -focusOffset)
+                        // Content padding already positions the line near the viewport center.
+                        listState.animateScrollToItem(currentLine)
                     }
                 }
 
@@ -1713,4 +1712,4 @@ private fun playerSupportingText(album: String, artist: String): String = listOf
     artist.takeIf { it.isNotBlank() && it != "未知音乐人" },
 ).joinToString("  ·  ")
 
-private const val ACTIVE_LYRIC_POSITION = .42f
+private const val ACTIVE_LYRIC_POSITION = .46f
