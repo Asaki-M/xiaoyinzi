@@ -1,0 +1,21 @@
+app/build.gradle.kts
+  s_4b32bda51aa32b::t_d72d0d34404bae 17-18
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_4b32bda51aa32b::t_4e37c9604c437d 784-786,793,809-810,824,833,894,905,911,915,920,923,933,947,1570,1572-1573,1715
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "629fa538eae462a52e7753249142f1c7f74c4b43",
+  "prompts": {},
+  "sessions": {
+    "s_4b32bda51aa32b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a083fc-fe3c-78d2-8fc8-841f5685ef61",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
