@@ -1,0 +1,33 @@
+app/src/main/java/com/xiaoyinzi/player/MainViewModel.kt
+  s_0fbabfec7e76ff::t_757fbaf76101fd 285-286
+app/build.gradle.kts
+  s_0fbabfec7e76ff::t_c8482cc41f4017 17-18
+app/src/main/java/com/xiaoyinzi/player/casting/LyricsCastManager.kt
+  s_0fbabfec7e76ff::t_757fbaf76101fd 132-136
+app/src/main/java/com/xiaoyinzi/player/casting/MacServiceDiscovery.kt
+  s_0fbabfec7e76ff::t_6d91faeeb2b25d 156,163,181,183
+  s_0fbabfec7e76ff::t_d345ced5c9ddd1 161-162,164-165,184-190
+  s_0fbabfec7e76ff::t_757fbaf76101fd 12,15-23,39-40,68-70,75-76,86-88,96,104,115,134,142-144,157-158,179,182,191-193,199-204
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_0fbabfec7e76ff::t_757fbaf76101fd 296
+app/src/test/java/com/xiaoyinzi/player/casting/MacServiceDiscoveryTest.kt
+  s_0fbabfec7e76ff::t_d345ced5c9ddd1 1-43
+mac-lyrics-protocol.md
+  s_0fbabfec7e76ff::t_d345ced5c9ddd1 45-46
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "c99d22ac4650e71f24429563047e8fd098de1f32",
+  "prompts": {},
+  "sessions": {
+    "s_0fbabfec7e76ff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0a3f2-4be7-70a2-a1e4-dc392a8c3b1a",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
