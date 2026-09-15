@@ -1,0 +1,41 @@
+app/src/main/java/com/xiaoyinzi/player/MainViewModel.kt
+  s_0fbabfec7e76ff::t_95747f7bc91c4a 282
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_0fbabfec7e76ff::t_593028d334be8b 466,631,645,695-698
+  s_0fbabfec7e76ff::t_95747f7bc91c4a 51-52,294,594,600,615,674-679,681-693
+app/src/test/java/com/xiaoyinzi/player/casting/CastProtocolTest.kt
+  s_0fbabfec7e76ff::t_9c7da3ec53dda1 42
+app/build.gradle.kts
+  s_0fbabfec7e76ff::t_b10eca6db07452 17-18
+app/src/main/java/com/xiaoyinzi/player/casting/CastProtocol.kt
+  s_0fbabfec7e76ff::t_95747f7bc91c4a 32
+README.md
+  s_0fbabfec7e76ff::t_593028d334be8b 20,23,72,74,76,82
+app/src/main/java/com/xiaoyinzi/player/casting/ManualCastAddress.kt
+  s_0fbabfec7e76ff::t_95747f7bc91c4a 1-11,13-19
+  s_0fbabfec7e76ff::t_e6ad9564f30273 12
+mac-lyrics-protocol.md
+  s_0fbabfec7e76ff::t_593028d334be8b 3,18-19,23,25,27,29,139,152
+app/src/main/java/com/xiaoyinzi/player/casting/LyricsCastManager.kt
+  s_0fbabfec7e76ff::t_95747f7bc91c4a 14,16,34-35,37,95-98,100-102,243-244,246-249,259,264-270,309,313,428,432
+  s_0fbabfec7e76ff::t_593028d334be8b 53-54,92,103,106
+  s_0fbabfec7e76ff::t_e6ad9564f30273 282-305,308,314,367,370-373,381,401-402
+app/src/test/java/com/xiaoyinzi/player/casting/ManualCastAddressTest.kt
+  s_0fbabfec7e76ff::t_e6ad9564f30273 4,7,9-13,17-20,24-34
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "18b82ff72227eb2383ea5da6106e9d9cf35f9ee3",
+  "prompts": {},
+  "sessions": {
+    "s_0fbabfec7e76ff": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0a3f2-4be7-70a2-a1e4-dc392a8c3b1a",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
