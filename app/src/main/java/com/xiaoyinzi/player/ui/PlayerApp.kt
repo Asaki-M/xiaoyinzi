@@ -48,6 +48,8 @@ import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
@@ -59,7 +61,6 @@ import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.Computer
 import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.LibraryMusic
@@ -137,7 +138,6 @@ import com.xiaoyinzi.player.MainViewModel
 import com.xiaoyinzi.player.data.GroupSummary
 import com.xiaoyinzi.player.data.TrackEntity
 import com.xiaoyinzi.player.casting.CastConnectionStatus
-import com.xiaoyinzi.player.casting.CastDevice
 import com.xiaoyinzi.player.casting.CastUiState
 import com.xiaoyinzi.player.lyrics.LyricLine
 import com.xiaoyinzi.player.library.TrackArtworkLoader
@@ -236,7 +236,6 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
                 onClose = { showLibraryActions = false },
                 onOpenCast = {
                     showLibraryActions = false
-                    viewModel.startCastDiscovery()
                     showCastPanel = true
                 },
                 onImportArchive = {
@@ -287,14 +286,12 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
         ModalBottomSheet(
             onDismissRequest = {
                 showCastPanel = false
-                if (!cast.enabled) viewModel.stopCastDiscovery()
             },
             containerColor = MaterialTheme.colorScheme.surface,
         ) {
             CastPanel(
                 state = cast,
-                onRefresh = viewModel::refreshCastDiscovery,
-                onConnect = viewModel::connectCastDevice,
+                onConnectManually = viewModel::connectCastManually,
                 onDisconnect = viewModel::disconnectCast,
                 onPair = viewModel::submitCastPairingCode,
                 onForgetPairing = viewModel::forgetCastPairing,
@@ -466,7 +463,7 @@ private fun LibraryActionsSidebar(
             SidebarAction(
                 icon = if (castConnected) Icons.Rounded.CastConnected else Icons.Rounded.Cast,
                 title = "Mac 实时歌词",
-                supportingText = if (castConnected) "已连接" else "发现并连接同一网络中的 Mac",
+                supportingText = if (castConnected) "已连接" else "输入地址连接同一网络中的 Mac",
                 accent = castConnected,
                 onClick = onOpenCast,
             )
@@ -594,13 +591,13 @@ private fun HeaderFireflies(modifier: Modifier = Modifier) {
 @Composable
 private fun CastPanel(
     state: CastUiState,
-    onRefresh: () -> Unit,
-    onConnect: (CastDevice) -> Unit,
+    onConnectManually: (String) -> Unit,
     onDisconnect: () -> Unit,
     onPair: (String) -> Unit,
     onForgetPairing: () -> Unit,
 ) {
     var pairingCode by remember(state.pairingRequired) { mutableStateOf("") }
+    var manualAddress by rememberSaveable(state.manualAddress) { mutableStateOf(state.manualAddress) }
     val statusColor by animateColorAsState(
         targetValue = when (state.connectionStatus) {
             CastConnectionStatus.CONNECTED -> MaterialTheme.colorScheme.primary
@@ -615,6 +612,7 @@ private fun CastPanel(
         modifier = Modifier
             .fillMaxWidth()
             .navigationBarsPadding()
+            .verticalScroll(rememberScrollState())
             .padding(horizontal = 24.dp, vertical = 8.dp),
     ) {
         Row(
@@ -630,11 +628,7 @@ private fun CastPanel(
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
-            if (
-                state.discovering ||
-                state.connectionStatus == CastConnectionStatus.CONNECTING ||
-                state.connectionStatus == CastConnectionStatus.SEARCHING
-            ) {
+            if (state.connectionStatus == CastConnectionStatus.CONNECTING) {
                 CircularProgressIndicator(modifier = Modifier.size(24.dp), strokeWidth = 2.dp)
             } else {
                 Icon(
@@ -648,7 +642,7 @@ private fun CastPanel(
 
         Spacer(Modifier.height(18.dp))
         Text(
-            "Mac 与手机连接同一局域网后，会在这里自动出现。歌词来自当前手机中的 .lrc / .lrcx 文件。",
+            "手机与 Mac 连接同一局域网，输入 Mac 窗口显示的地址即可连接。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
         )
@@ -677,64 +671,31 @@ private fun CastPanel(
             }
         }
 
-        Spacer(Modifier.height(22.dp))
-        Row(
+        Spacer(Modifier.height(20.dp))
+        Text("手动连接", style = MaterialTheme.typography.titleMedium)
+        Spacer(Modifier.height(8.dp))
+        OutlinedTextField(
+            value = manualAddress,
+            onValueChange = { manualAddress = it },
             modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("发现的设备", style = MaterialTheme.typography.labelMedium)
-            TextButton(onClick = onRefresh) { Text("重新搜索") }
-        }
+            label = { Text("Mac 连接地址") },
+            placeholder = { Text("192.168.1.10:49200") },
+            supportingText = { Text("打开 Mac 菜单栏的小银子窗口，查看连接地址") },
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri, imeAction = ImeAction.Go),
+            keyboardActions = KeyboardActions(onGo = { onConnectManually(manualAddress) }),
+        )
+        Spacer(Modifier.height(8.dp))
+        OutlinedButton(
+            onClick = { onConnectManually(manualAddress) },
+            enabled = manualAddress.isNotBlank(),
+            modifier = Modifier.fillMaxWidth(),
+        ) { Text("连接这个地址") }
 
-        if (state.devices.isEmpty()) {
-            Column(modifier = Modifier.fillMaxWidth().padding(vertical = 20.dp)) {
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Icon(Icons.Rounded.Computer, contentDescription = null, tint = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Spacer(Modifier.size(12.dp))
-                    Column {
-                        Text("还没有发现 Mac", style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "请先启动 Mac 菜单栏应用",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                }
-                if (state.enabled) {
-                    Spacer(Modifier.height(12.dp))
-                    OutlinedButton(onClick = onDisconnect) { Text("停止连接") }
-                }
-            }
-        } else {
-            state.devices.forEach { device ->
-                val selected = device.name == state.selectedDeviceName
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Icon(
-                        if (selected && state.connectionStatus == CastConnectionStatus.CONNECTED) Icons.Rounded.CastConnected else Icons.Rounded.Computer,
-                        contentDescription = null,
-                        tint = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        Text(device.name, style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            "${device.host}:${device.port}",
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                    }
-                    if (selected && state.enabled) {
-                        TextButton(onClick = onDisconnect) { Text("断开") }
-                    } else {
-                        OutlinedButton(onClick = { onConnect(device) }) { Text("连接") }
-                    }
-                }
-                HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+        if (state.enabled) {
+            Spacer(Modifier.height(8.dp))
+            TextButton(onClick = onDisconnect, modifier = Modifier.fillMaxWidth()) {
+                Text("断开连接")
             }
         }
 
@@ -760,7 +721,6 @@ private fun CastPanel(
 
 private fun castStatusText(state: CastUiState): String = when (state.connectionStatus) {
     CastConnectionStatus.OFF -> "未开启"
-    CastConnectionStatus.SEARCHING -> "正在寻找同一网络中的 Mac"
     CastConnectionStatus.CONNECTING -> "正在连接 ${state.selectedDeviceName.orEmpty()}"
     CastConnectionStatus.PAIRING -> "等待配对"
     CastConnectionStatus.CONNECTED -> "已连接 ${state.selectedDeviceName.orEmpty()}"

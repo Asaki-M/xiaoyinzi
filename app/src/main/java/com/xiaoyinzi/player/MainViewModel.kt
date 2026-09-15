@@ -8,7 +8,6 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.xiaoyinzi.player.data.GroupSummary
 import com.xiaoyinzi.player.data.TrackEntity
-import com.xiaoyinzi.player.casting.CastDevice
 import com.xiaoyinzi.player.library.LibraryRepository
 import com.xiaoyinzi.player.library.LibraryScanner
 import com.xiaoyinzi.player.library.SilverlinCatalog
@@ -280,13 +279,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         message.value = null
     }
 
-    fun startCastDiscovery() = app.lyricsCastManager.startDiscovery()
-
-    fun refreshCastDiscovery() = app.lyricsCastManager.refreshDiscovery()
-
-    fun stopCastDiscovery() = app.lyricsCastManager.stopDiscovery()
-
-    fun connectCastDevice(device: CastDevice) = app.lyricsCastManager.connect(device)
+    fun connectCastManually(address: String) = app.lyricsCastManager.connectManually(address)
 
     fun disconnectCast() = app.lyricsCastManager.disconnect()
 

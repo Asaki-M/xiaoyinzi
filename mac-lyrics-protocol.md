@@ -1,14 +1,12 @@
 # 小银子 Mac 实时歌词协议 v1
 
-这份文档用于后续实现 macOS 菜单栏歌词应用。Android 是歌词和播放状态的唯一数据源，Mac 不需要维护一套同名歌词文件。
+这份文档描述 Android 与 macOS 菜单栏歌词应用的通信协议。Android 是歌词和播放状态的唯一数据源，Mac 不需要维护一套同名歌词文件。
 
 ## 1. 连接角色
 
 ```text
 Android 小银子                         macOS 菜单栏应用
       │                                      │
-      │  Bonjour 查找 _xiaoyinzi-lyric._tcp  │
-      │─────────────────────────────────────>│
       │            TCP 连接                  │
       │─────────────────────────────────────>│
       │ hello / pair / track / sync          │
@@ -17,32 +15,18 @@ Android 小银子                         macOS 菜单栏应用
       │<─────────────────────────────────────│
 ```
 
-- Mac 是 TCP 服务端，并通过 Bonjour 广播服务。
-- Android 是 TCP 客户端，负责自动发现和断线重连。
+- Mac 是 TCP 服务端，在窗口显示局域网连接地址。
+- Android 是 TCP 客户端，使用用户输入的地址连接，保存地址并在断线后重连。
 - 两台设备必须在同一局域网，且网络不能开启客户端隔离。
 - 协议为 UTF-8 编码的 NDJSON：每条 JSON 消息占一行，以 `\n` 结束。
 - 当前协议版本为 `1`。
+- 移除设备自动发现不改变协议版本、配对凭据或歌词消息格式。
 
-## 2. Bonjour 服务
+## 2. 手动连接地址
 
-Mac 发布：
+Mac 优先监听 IPv4 端口 `49200`，端口占用时分配其他可用端口。窗口显示可用的局域网 IPv4 和实际监听端口，例如 `192.168.1.10:49200`，并在网络地址变化时更新显示。
 
-| 字段 | 值 |
-| --- | --- |
-| Service type | `_xiaoyinzi-lyric._tcp` |
-| Domain | `local.` |
-| Service name | 任意可读名称，建议直接使用电脑名称 |
-| Port | Mac 监听器实际分配的 TCP 端口 |
-
-Swift 可使用 `Network.framework` 的 `NWListener`，并设置：
-
-```swift
-listener.service = NWListener.Service(name: Host.current().localizedName, type: "_xiaoyinzi-lyric._tcp")
-```
-
-Android 不会按 Service name 过滤设备，因此 Mac 不需要叫“小银子的 Mac”。Service type 必须保持一致；其中 `xiaoyinzi-lyric` 正好 15 个字符，符合 Bonjour 服务类型长度限制。Android 暂时也会搜索旧的 `_xiaoyinzi-lyrics._tcp`，方便迁移，但 Mac 端应改用上面的新类型。
-
-广播地址必须与 TCP 监听一致：仅监听 IPv4 的接收端应禁用 IPv6 广播，并排除回环接口（`127.0.0.1` / `::1`）。自建 mDNS 接收端应使用独立的 `.local.` 主机名，避免与系统 Bonjour 的地址记录混用。Android 会过滤回环、未指定和多播地址，并优先使用局域网 IPv4。
+Android 校验并保存用户输入的 `IPv4:端口`，直接建立 TCP 连接。Mac 换网或端口变化后，用户应更新手机中保存的地址。手机端不执行设备搜索，Mac 端不发布服务广播。
 
 ## 3. 首次连接和配对
 
@@ -152,7 +136,7 @@ Mac 可以发送：
 
 ## 7. Mac 端最小实现清单
 
-- 使用 `NWListener` 监听 TCP 并发布 Bonjour 服务。
+- 监听 TCP，并在窗口显示实际的局域网地址和端口。
 - 用缓冲区按换行切分消息；不要假设一次网络回调就是一条完整 JSON。
 - 实现 `hello`、`pair`、`track`、`sync` 四类入站消息。
 - 实现 `pair_required`、`paired`、`ready`、`error` 四类出站消息。
@@ -165,7 +149,7 @@ Mac 可以发送：
 | 职责 | 文件 |
 | --- | --- |
 | 消息模型与常量 | `casting/CastProtocol.kt` |
-| Bonjour 发现 | `casting/MacServiceDiscovery.kt` |
+| 手动地址校验 | `casting/ManualCastAddress.kt` |
 | TCP、配对、重连和同步 | `casting/LyricsCastManager.kt` |
 | 播放器状态接入 | `playback/PlaybackService.kt` |
 | 连接界面 | `ui/PlayerApp.kt` |

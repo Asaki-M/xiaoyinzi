@@ -11,7 +11,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -29,7 +31,10 @@ import java.io.BufferedWriter
 import java.io.InputStreamReader
 import java.io.OutputStreamWriter
 import java.net.InetSocketAddress
+import java.net.ConnectException
+import java.net.NoRouteToHostException
 import java.net.Socket
+import java.net.SocketTimeoutException
 import java.nio.charset.StandardCharsets
 import java.security.MessageDigest
 import java.util.UUID
@@ -38,7 +43,6 @@ import kotlin.math.min
 class LyricsCastManager(context: Context) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val preferences = applicationContext.getSharedPreferences(PREFERENCES_NAME, 0)
-    private val discovery = MacServiceDiscovery(applicationContext)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val json = CastJson
     private val sendMutex = Mutex()
@@ -46,6 +50,8 @@ class LyricsCastManager(context: Context) : AutoCloseable {
         CastUiState(
             enabled = preferences.getBoolean(KEY_ENABLED, false),
             selectedDeviceName = preferences.getString(KEY_DEVICE_NAME, null),
+            manualAddress = preferences.getString(KEY_MANUAL_ADDRESS, null)
+                ?: storedDevice()?.let { "${it.host}:${it.port}" }.orEmpty(),
         ),
     )
     val state: StateFlow<CastUiState> = _state.asStateFlow()
@@ -83,58 +89,21 @@ class LyricsCastManager(context: Context) : AutoCloseable {
     }
 
     init {
-        scope.launch {
-            discovery.devices.collect { devices ->
-                _state.update { it.copy(devices = devices, discovering = discovery.isDiscovering) }
-                val selectedName = _state.value.selectedDeviceName ?: return@collect
-                devices.firstOrNull { it.name == selectedName }?.let { refreshed ->
-                    val stored = storedDevice()
-                    val endpointChanged = stored?.host != refreshed.host || stored.port != refreshed.port
-                    persistEndpoint(refreshed)
-                    if (_state.value.enabled && (connectionJob?.isActive != true || endpointChanged)) reconnect(refreshed)
-                }
-            }
-        }
-        scope.launch {
-            discovery.discovering.collect { discovering ->
-                _state.update { it.copy(discovering = discovering) }
-            }
-        }
-        scope.launch {
-            discovery.error.collect { error ->
-                if (error != null && _state.value.connectionStatus != CastConnectionStatus.CONNECTED) {
-                    _state.update { it.copy(message = error) }
-                }
-            }
-        }
-        if (_state.value.enabled) {
-            startDiscovery()
-            storedDevice()?.let(::reconnect)
-        }
+        if (_state.value.enabled) storedDevice()?.let(::reconnect)
     }
 
-    fun startDiscovery() {
-        discovery.start()
-        _state.update {
-            it.copy(
-                discovering = discovery.isDiscovering,
-                connectionStatus = if (it.enabled && socket == null) CastConnectionStatus.SEARCHING else it.connectionStatus,
-                message = null,
-            )
+    fun connectManually(address: String) {
+        val device = runCatching { parseManualCastAddress(address) }.getOrElse { error ->
+            _state.update { it.copy(message = error.message) }
+            return
         }
+        val normalized = "${device.host}:${device.port}"
+        preferences.edit { putString(KEY_MANUAL_ADDRESS, normalized) }
+        _state.update { it.copy(manualAddress = normalized) }
+        connect(device)
     }
 
-    fun stopDiscovery() {
-        discovery.stop()
-        _state.update { it.copy(discovering = false) }
-    }
-
-    fun refreshDiscovery() {
-        stopDiscovery()
-        startDiscovery()
-    }
-
-    fun connect(device: CastDevice) {
+    private fun connect(device: CastDevice) {
         preferences.edit {
             putBoolean(KEY_ENABLED, true)
             putString(KEY_DEVICE_NAME, device.name)
@@ -149,7 +118,6 @@ class LyricsCastManager(context: Context) : AutoCloseable {
                 pairingRequired = false,
             )
         }
-        startDiscovery()
         reconnect(device)
     }
 
@@ -166,7 +134,6 @@ class LyricsCastManager(context: Context) : AutoCloseable {
         connectionJob?.cancel()
         connectionJob = null
         closeTransport()
-        stopDiscovery()
     }
 
     fun submitPairingCode(code: String) {
@@ -273,9 +240,13 @@ class LyricsCastManager(context: Context) : AutoCloseable {
     }
 
     private fun reconnect(device: CastDevice) {
-        connectionJob?.cancel()
+        val previous = connectionJob
+        previous?.cancel()
         closeTransport()
-        connectionJob = scope.launch(Dispatchers.IO) {
+        connectionJob = scope.launch {
+            // A cancelled blocking socket operation must finish before a new
+            // connection takes ownership of the shared transport.
+            previous?.join()
             var retryDelay = 1_000L
             while (isActive && _state.value.enabled) {
                 _state.update {
@@ -285,12 +256,18 @@ class LyricsCastManager(context: Context) : AutoCloseable {
                         message = null,
                     )
                 }
-                val failure = runCatching { runConnection(device) }.exceptionOrNull()
+                val failure = runCatching { withContext(Dispatchers.IO) { runConnection(device) } }.exceptionOrNull()
                 if (!isActive || !_state.value.enabled) break
                 _state.update {
                     it.copy(
                         connectionStatus = CastConnectionStatus.ERROR,
-                        message = failure?.localizedMessage ?: "Mac 连接已断开，正在重试",
+                        pairingRequired = false,
+                        message = when (failure) {
+                            is SocketTimeoutException -> "连接 ${device.host}:${device.port} 超时，请检查同一 Wi-Fi、Mac 本地网络权限及防火墙"
+                            is ConnectException -> "Mac 拒绝连接，请确认桌面端已打开，且地址和端口与窗口显示一致"
+                            is NoRouteToHostException -> "无法访问 Mac，请确认两台设备在同一局域网，网络未开启设备隔离"
+                            else -> failure?.localizedMessage ?: "Mac 连接已断开，正在重试"
+                        },
                     )
                 }
                 delay(retryDelay)
@@ -301,32 +278,40 @@ class LyricsCastManager(context: Context) : AutoCloseable {
 
     private suspend fun runConnection(device: CastDevice) {
         val connection = Socket()
-        connection.connect(InetSocketAddress(device.host, device.port), CONNECT_TIMEOUT_MS)
-        connection.tcpNoDelay = true
-        val output = BufferedWriter(OutputStreamWriter(connection.getOutputStream(), StandardCharsets.UTF_8))
-        val input = BufferedReader(InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))
-        socket = connection
-        writer = output
-        _state.update {
-            it.copy(
-                connectionStatus = CastConnectionStatus.CONNECTING,
-                message = "已连接，等待 Mac 确认",
-            )
-        }
-
-        sendMessage(
-            HelloMessage(
-                deviceId = deviceId,
-                token = preferences.getString(KEY_TOKEN, null),
-            ),
-        )
         try {
+            connection.connect(InetSocketAddress(device.host, device.port), CONNECT_TIMEOUT_MS)
+            connection.tcpNoDelay = true
+            connection.soTimeout = HANDSHAKE_TIMEOUT_MS
+            val output = BufferedWriter(OutputStreamWriter(connection.getOutputStream(), StandardCharsets.UTF_8))
+            val input = BufferedReader(InputStreamReader(connection.getInputStream(), StandardCharsets.UTF_8))
+            val connectionContext = currentCoroutineContext()
+            synchronized(this) {
+                connectionContext.ensureActive()
+                socket = connection
+                writer = output
+            }
+            _state.update {
+                it.copy(
+                    connectionStatus = CastConnectionStatus.CONNECTING,
+                    message = "已连接，等待 Mac 确认",
+                )
+            }
+
+            sendMessage(
+                HelloMessage(
+                    deviceId = deviceId,
+                    token = preferences.getString(KEY_TOKEN, null),
+                ),
+            )
             while (true) {
                 val line = input.readLine() ?: break
+                currentCoroutineContext().ensureActive()
+                connection.soTimeout = 0
                 handleIncoming(line)
             }
         } finally {
-            closeTransport()
+            runCatching { connection.close() }
+            closeTransport(connection)
         }
     }
 
@@ -379,9 +364,13 @@ class LyricsCastManager(context: Context) : AutoCloseable {
     private suspend inline fun <reified T> sendMessage(message: T) {
         val encoded = json.encodeToString(message)
         withContext(Dispatchers.IO) {
+            var sendingSocket: Socket? = null
             val failure = runCatching {
                 sendMutex.withLock {
-                    val activeWriter = writer ?: return@withLock
+                    val activeWriter = synchronized(this@LyricsCastManager) {
+                        sendingSocket = socket
+                        writer
+                    } ?: return@withLock
                     activeWriter.write(encoded)
                     activeWriter.newLine()
                     activeWriter.flush()
@@ -389,7 +378,7 @@ class LyricsCastManager(context: Context) : AutoCloseable {
                 }
             }.exceptionOrNull()
             if (failure != null) {
-                closeTransport()
+                sendingSocket?.let(::closeTransport)
             }
         }
     }
@@ -409,7 +398,8 @@ class LyricsCastManager(context: Context) : AutoCloseable {
     }
 
     @Synchronized
-    private fun closeTransport() {
+    private fun closeTransport(expected: Socket? = null) {
+        if (expected != null && socket !== expected) return
         runCatching { socket?.close() }
         runCatching { writer?.close() }
         writer = null
@@ -419,7 +409,6 @@ class LyricsCastManager(context: Context) : AutoCloseable {
     override fun close() {
         unbindPlayer()
         disconnect()
-        discovery.close()
         scope.cancel()
     }
 
@@ -436,9 +425,11 @@ class LyricsCastManager(context: Context) : AutoCloseable {
         const val KEY_DEVICE_NAME = "device_name"
         const val KEY_DEVICE_HOST = "device_host"
         const val KEY_DEVICE_PORT = "device_port"
+        const val KEY_MANUAL_ADDRESS = "manual_address"
         const val KEY_TOKEN = "pair_token"
         const val SYNC_INTERVAL_MS = 750L
         const val CONNECT_TIMEOUT_MS = 5_000
+        const val HANDSHAKE_TIMEOUT_MS = 10_000
         const val MAX_RETRY_DELAY_MS = 15_000L
     }
 }
