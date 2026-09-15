@@ -282,6 +282,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun startCastDiscovery() = app.lyricsCastManager.startDiscovery()
 
+    fun refreshCastDiscovery() = app.lyricsCastManager.refreshDiscovery()
+
     fun stopCastDiscovery() = app.lyricsCastManager.stopDiscovery()
 
     fun connectCastDevice(device: CastDevice) = app.lyricsCastManager.connect(device)

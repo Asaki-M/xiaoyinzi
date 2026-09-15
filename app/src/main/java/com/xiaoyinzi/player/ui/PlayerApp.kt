@@ -293,7 +293,7 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
         ) {
             CastPanel(
                 state = cast,
-                onRefresh = viewModel::startCastDiscovery,
+                onRefresh = viewModel::refreshCastDiscovery,
                 onConnect = viewModel::connectCastDevice,
                 onDisconnect = viewModel::disconnectCast,
                 onPair = viewModel::submitCastPairingCode,

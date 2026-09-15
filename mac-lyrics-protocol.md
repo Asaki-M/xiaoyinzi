@@ -42,6 +42,8 @@ listener.service = NWListener.Service(name: Host.current().localizedName, type: 
 
 Android 不会按 Service name 过滤设备，因此 Mac 不需要叫“小银子的 Mac”。Service type 必须保持一致；其中 `xiaoyinzi-lyric` 正好 15 个字符，符合 Bonjour 服务类型长度限制。Android 暂时也会搜索旧的 `_xiaoyinzi-lyrics._tcp`，方便迁移，但 Mac 端应改用上面的新类型。
 
+广播地址必须与 TCP 监听一致：仅监听 IPv4 的接收端应禁用 IPv6 广播，并排除回环接口（`127.0.0.1` / `::1`）。自建 mDNS 接收端应使用独立的 `.local.` 主机名，避免与系统 Bonjour 的地址记录混用。Android 会过滤回环、未指定和多播地址，并优先使用局域网 IPv4。
+
 ## 3. 首次连接和配对
 
 Android 建立 TCP 连接后首先发送 `hello`：

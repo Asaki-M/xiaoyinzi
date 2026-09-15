@@ -129,6 +129,11 @@ class LyricsCastManager(context: Context) : AutoCloseable {
         _state.update { it.copy(discovering = false) }
     }
 
+    fun refreshDiscovery() {
+        stopDiscovery()
+        startDiscovery()
+    }
+
     fun connect(device: CastDevice) {
         preferences.edit {
             putBoolean(KEY_ENABLED, true)

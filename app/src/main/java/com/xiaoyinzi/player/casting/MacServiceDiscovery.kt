@@ -9,7 +9,17 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.net.Inet4Address
+import java.net.InetAddress
 import java.util.ArrayDeque
+
+internal fun selectCastAddress(addresses: List<InetAddress>): InetAddress? {
+    val reachable = addresses.filterNot {
+        it.isLoopbackAddress || it.isAnyLocalAddress || it.isMulticastAddress
+    }
+    return reachable.firstOrNull { it is Inet4Address }
+        ?: reachable.firstOrNull { !it.isLinkLocalAddress }
+        ?: reachable.firstOrNull()
+}
 
 class MacServiceDiscovery(context: Context) : AutoCloseable {
     private val nsdManager = context.getSystemService(Context.NSD_SERVICE) as NsdManager
@@ -26,6 +36,8 @@ class MacServiceDiscovery(context: Context) : AutoCloseable {
     private val resolvedByService = linkedMapOf<String, CastDevice>()
     private val pendingResolution = ArrayDeque<NsdServiceInfo>()
     private var resolving = false
+    private var generation = 0
+    private val foundServices = mutableSetOf<String>()
     private val discoveryListeners = linkedMapOf<String, NsdManager.DiscoveryListener>()
 
     val isDiscovering: Boolean
@@ -53,11 +65,15 @@ class MacServiceDiscovery(context: Context) : AutoCloseable {
     private fun startDiscoveryForType(requestedType: String) {
         val listener = object : NsdManager.DiscoveryListener {
             override fun onDiscoveryStarted(serviceType: String) {
-                _discovering.value = true
+                synchronized(this@MacServiceDiscovery) {
+                    if (discoveryListeners[requestedType] === this) _discovering.value = true
+                }
             }
 
             override fun onServiceFound(serviceInfo: NsdServiceInfo) {
                 synchronized(this@MacServiceDiscovery) {
+                    if (discoveryListeners[requestedType] !== this) return
+                    foundServices.add(serviceKey(serviceInfo))
                     if (pendingResolution.none { serviceKey(it) == serviceKey(serviceInfo) }) {
                         pendingResolution.addLast(serviceInfo)
                     }
@@ -67,6 +83,9 @@ class MacServiceDiscovery(context: Context) : AutoCloseable {
 
             override fun onServiceLost(serviceInfo: NsdServiceInfo) {
                 synchronized(this@MacServiceDiscovery) {
+                    if (discoveryListeners[requestedType] !== this) return
+                    foundServices.remove(serviceKey(serviceInfo))
+                    pendingResolution.removeAll { serviceKey(it) == serviceKey(serviceInfo) }
                     resolvedByService.remove(serviceKey(serviceInfo))
                     publishDevices()
                 }
@@ -74,6 +93,7 @@ class MacServiceDiscovery(context: Context) : AutoCloseable {
 
             override fun onDiscoveryStopped(serviceType: String) {
                 synchronized(this@MacServiceDiscovery) {
+                    if (discoveryListeners[requestedType] !== this) return
                     discoveryListeners.remove(requestedType)
                     updateDiscoveryState()
                 }
@@ -81,6 +101,7 @@ class MacServiceDiscovery(context: Context) : AutoCloseable {
 
             override fun onStartDiscoveryFailed(serviceType: String, errorCode: Int) {
                 synchronized(this@MacServiceDiscovery) {
+                    if (discoveryListeners[requestedType] !== this) return
                     discoveryListeners.remove(requestedType)
                     if (discoveryListeners.isEmpty()) {
                         _error.value = "局域网设备搜索启动失败（错误码 $errorCode）"
@@ -91,6 +112,7 @@ class MacServiceDiscovery(context: Context) : AutoCloseable {
 
             override fun onStopDiscoveryFailed(serviceType: String, errorCode: Int) {
                 synchronized(this@MacServiceDiscovery) {
+                    if (discoveryListeners[requestedType] !== this) return
                     discoveryListeners.remove(requestedType)
                     updateDiscoveryState()
                 }
@@ -109,6 +131,7 @@ class MacServiceDiscovery(context: Context) : AutoCloseable {
 
     @Synchronized
     fun stop() {
+        generation++
         val listeners = discoveryListeners.values.toList()
         discoveryListeners.clear()
         _discovering.value = false
@@ -116,7 +139,9 @@ class MacServiceDiscovery(context: Context) : AutoCloseable {
             runCatching { nsdManager.stopServiceDiscovery(listener) }
         }
         pendingResolution.clear()
-        resolving = false
+        // Legacy NSD cannot cancel an in-flight resolve. Wait for its callback
+        // before starting the next one, even when discovery has restarted.
+        foundServices.clear()
         resolvedByService.clear()
         publishDevices()
         releaseMulticastLock()
@@ -128,10 +153,16 @@ class MacServiceDiscovery(context: Context) : AutoCloseable {
         if (resolving || pendingResolution.isEmpty()) return
         resolving = true
         val service = pendingResolution.removeFirst()
-        nsdManager.resolveService(service, object : NsdManager.ResolveListener {
+        val key = serviceKey(service)
+        val resolutionGeneration = generation
+        val listener = object : NsdManager.ResolveListener {
             override fun onResolveFailed(serviceInfo: NsdServiceInfo, errorCode: Int) {
                 synchronized(this@MacServiceDiscovery) {
-                    if (resolvedByService.isEmpty()) {
+                    if (
+                        resolutionGeneration == generation &&
+                        key in foundServices &&
+                        resolvedByService.isEmpty()
+                    ) {
                         _error.value = "已发现 ${serviceInfo.serviceName}，但无法获取地址（错误码 $errorCode）"
                     }
                     resolving = false
@@ -145,25 +176,32 @@ class MacServiceDiscovery(context: Context) : AutoCloseable {
                 } else {
                     listOfNotNull(serviceInfo.host)
                 }
-                val address = addresses.firstOrNull { it is Inet4Address }
-                    ?: addresses.firstOrNull { !it.isLinkLocalAddress }
-                    ?: addresses.firstOrNull()
+                val address = selectCastAddress(addresses)
                 synchronized(this@MacServiceDiscovery) {
-                    if (discoveryListeners.isNotEmpty()) address?.hostAddress?.let { host ->
-                        resolvedByService[serviceKey(serviceInfo)] = CastDevice(
-                            id = "${serviceInfo.serviceName}@$host:${serviceInfo.port}",
-                            name = serviceInfo.serviceName,
-                            host = host,
-                            port = serviceInfo.port,
-                        )
-                        _error.value = null
-                        publishDevices()
+                    if (resolutionGeneration == generation && key in foundServices) {
+                        address?.hostAddress?.let { host ->
+                            resolvedByService[key] = CastDevice(
+                                id = "${serviceInfo.serviceName}@$host:${serviceInfo.port}",
+                                name = serviceInfo.serviceName,
+                                host = host,
+                                port = serviceInfo.port,
+                            )
+                            _error.value = null
+                            publishDevices()
+                        } ?: run {
+                            _error.value = "已发现 ${serviceInfo.serviceName}，但没有可用的局域网地址，请检查 Mac 网络设置后重新搜索"
+                        }
                     }
                     resolving = false
                     resolveNext()
                 }
             }
-        })
+        }
+        runCatching { nsdManager.resolveService(service, listener) }.onFailure { error ->
+            resolving = false
+            _error.value = "无法获取 ${service.serviceName} 的地址：${error.localizedMessage.orEmpty()}"
+            resolveNext()
+        }
     }
 
     private fun publishDevices() {
