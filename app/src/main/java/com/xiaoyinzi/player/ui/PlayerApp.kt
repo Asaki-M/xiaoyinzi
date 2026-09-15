@@ -99,6 +99,7 @@ import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -1316,7 +1317,9 @@ private fun NowPlayingScreen(
 ) {
     var showQueue by remember { mutableStateOf(false) }
     val currentLine = lyrics.indexOfLast { it.timeMs <= state.positionMs }
-    val lyricListState = rememberLazyListState()
+    val lyricListState = key(state.currentTrackUri) {
+        rememberLazyListState()
+    }
 
     Box(
         modifier = Modifier
@@ -1567,8 +1570,10 @@ private fun LyricsStage(
             ) {
                 val focusPadding = maxHeight * ACTIVE_LYRIC_POSITION
 
-                LaunchedEffect(currentLine, focusPadding) {
-                    if (currentLine >= 0) {
+                LaunchedEffect(listState, lyrics, currentLine, focusPadding) {
+                    if (currentLine < 0) {
+                        listState.scrollToItem(0)
+                    } else {
                         // Content padding already positions the line near the viewport center.
                         listState.animateScrollToItem(currentLine)
                     }
