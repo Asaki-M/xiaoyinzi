@@ -1,0 +1,19 @@
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_4b32bda51aa32b::t_f16f9c5427f1a2 102,1320-1322,1573-1576
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "a46a61c1e3146b4efe741b2d5687f9ab77af1b81",
+  "prompts": {},
+  "sessions": {
+    "s_4b32bda51aa32b": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a083fc-fe3c-78d2-8fc8-841f5685ef61",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
