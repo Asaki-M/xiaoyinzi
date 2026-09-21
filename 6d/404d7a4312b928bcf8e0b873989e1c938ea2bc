@@ -1,0 +1,30 @@
+app/build.gradle.kts
+  s_713708188db29f::t_1af07eb514af8e 17-18
+app/src/main/java/com/xiaoyinzi/player/ui/YinlinOverlays.kt
+  s_713708188db29f::t_7bf1682359945e 1-13,15-17,19-40,42-51,54,56-102,104-111,114,116,118-121,124,127-136,138-148,150-154,156,167-168,170-171,184-186,188-202,204-207,209-214,216-218
+  s_713708188db29f::t_35bda03a8b6323 14,18,41,55,103,112-113,115,117,122-123,137,149,155,157-166,169,172-183,187,208,215
+  s_713708188db29f::t_bdb11341ef29aa 52-53,125-126,203
+app/src/main/java/com/xiaoyinzi/player/ui/TrackActionsSheet.kt
+  s_713708188db29f::t_8ab0c989f10d8f 1-27,29-44,46-54,56-71,76-97,102-112,117-143
+  s_713708188db29f::t_bdb11341ef29aa 28,72-75,98-101,113-116
+  s_713708188db29f::t_b8bc85f5c62a5c 45,55
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_713708188db29f::t_b8bc85f5c62a5c 280,782,793,795,1018,1299
+  s_713708188db29f::t_bdb11341ef29aa 604,781,783-788,790-792,794,796-800,996,1003-1015,1017,1019-1024,1026-1036,1145-1166,1168-1170,1172-1180,1324
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.4",
+  "base_commit_sha": "6d404d7a4312b928bcf8e0b873989e1c938ea2bc",
+  "prompts": {},
+  "sessions": {
+    "s_713708188db29f": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a0c1b9-d9bd-74a2-a471-277cdbe60fd1",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
