@@ -24,6 +24,9 @@ interface LibraryDao {
     )
     fun observeGroups(): Flow<List<GroupSummary>>
 
+    @Query("SELECT * FROM track_group_cross_ref")
+    fun observeTrackGroups(): Flow<List<TrackGroupCrossRef>>
+
     @Query(
         """
         SELECT tracks.* FROM tracks

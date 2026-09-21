@@ -45,6 +45,7 @@ data class LibraryTrackUiState(
     val key: String,
     val title: String,
     val track: TrackEntity?,
+    val groupIds: Set<Long> = emptySet(),
 )
 
 data class LibraryGroupUiState(
@@ -58,6 +59,7 @@ private data class LibraryContent(
     val allTracks: List<TrackEntity>,
     val customGroups: List<GroupSummary>,
     val selectedGroupId: String?,
+    val trackGroupIds: Map<String, Set<Long>>,
 )
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -101,8 +103,16 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         repositorySnapshot,
         repository.groups,
         selectedGroupId,
-    ) { tracks, allTracks, groups, groupId ->
-        LibraryContent(tracks, allTracks, groups, groupId)
+        repository.trackGroups,
+    ) { tracks, allTracks, groups, groupId, trackGroups ->
+        LibraryContent(
+            visibleTracks = tracks,
+            allTracks = allTracks,
+            customGroups = groups,
+            selectedGroupId = groupId,
+            trackGroupIds = trackGroups.groupBy { it.trackUri }
+                .mapValues { (_, memberships) -> memberships.mapTo(mutableSetOf()) { it.groupId } },
+        )
     }
 
     val uiState: StateFlow<LibraryUiState> = combine(
@@ -153,7 +163,9 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
         val selectedGroup = groups.firstOrNull { it.id == content.selectedGroupId }
         LibraryUiState(
-            tracks = displayTracks,
+            tracks = displayTracks.map { item ->
+                item.copy(groupIds = content.trackGroupIds[item.track?.uri].orEmpty())
+            },
             groups = groups,
             customGroups = content.customGroups,
             selectedGroupId = content.selectedGroupId,
@@ -219,11 +231,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
-    fun deleteSelectedGroup() {
-        val id = selectedGroupId.value?.customGroupIdOrNull() ?: return
+    fun deleteGroup(groupId: String) {
+        val id = groupId.customGroupIdOrNull() ?: return
         viewModelScope.launch {
             repository.deleteGroup(id)
-            selectGroup(null)
+            if (selectedGroupId.value == groupId) selectGroup(null)
         }
     }
 

@@ -13,6 +13,7 @@ class LibraryRepository(private val database: AppDatabase) {
 
     val tracks: Flow<List<TrackEntity>> = dao.observeTracks()
     val groups: Flow<List<GroupSummary>> = dao.observeGroups()
+    val trackGroups: Flow<List<TrackGroupCrossRef>> = dao.observeTrackGroups()
 
     fun tracksInGroup(groupId: Long): Flow<List<TrackEntity>> = dao.observeTracksInGroup(groupId)
 

@@ -61,7 +61,6 @@ import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.DeleteOutline
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
@@ -193,7 +192,7 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
                 onImportArchive = onImportArchive,
                 onCreateGroup = { showCreateGroup = true },
                 onSelectGroup = viewModel::selectGroup,
-                onDeleteGroup = viewModel::deleteSelectedGroup,
+                onDeleteGroup = viewModel::deleteGroup,
                 onHidePresetGroup = viewModel::hidePresetGroup,
                 onPlay = viewModel::play,
                 onAddToGroup = viewModel::addTrackToGroup,
@@ -309,7 +308,7 @@ private fun LibraryScreen(
     onImportArchive: () -> Unit,
     onCreateGroup: () -> Unit,
     onSelectGroup: (String?) -> Unit,
-    onDeleteGroup: () -> Unit,
+    onDeleteGroup: (String) -> Unit,
     onHidePresetGroup: (String) -> Unit,
     onPlay: (TrackEntity) -> Unit,
     onAddToGroup: (String, Long) -> Unit,
@@ -734,10 +733,10 @@ private fun GroupSelector(
     selectedId: String?,
     onSelect: (String?) -> Unit,
     onCreate: () -> Unit,
-    onDelete: () -> Unit,
+    onDelete: (String) -> Unit,
     onHidePreset: (String) -> Unit,
 ) {
-    var presetPendingDeletion by remember { mutableStateOf<LibraryGroupUiState?>(null) }
+    var groupPendingDeletion by remember { mutableStateOf<LibraryGroupUiState?>(null) }
 
     FlowRow(
         modifier = Modifier
@@ -760,7 +759,7 @@ private fun GroupSelector(
                     label = group.name,
                     selected = selectedId == group.id,
                     onClick = { onSelect(group.id) },
-                    onLongClick = { presetPendingDeletion = group },
+                    onLongClick = { groupPendingDeletion = group },
                 ) {
                     Image(
                         painter = painterResource(artworkRes),
@@ -776,11 +775,7 @@ private fun GroupSelector(
                     label = group.name,
                     selected = selectedId == group.id,
                     onClick = { onSelect(group.id) },
-                    onLongClick = if (group.isPreset) {
-                        { presetPendingDeletion = group }
-                    } else {
-                        null
-                    },
+                    onLongClick = { groupPendingDeletion = group },
                 ) {
                     Icon(Icons.Rounded.LibraryMusic, contentDescription = null, Modifier.size(20.dp))
                 }
@@ -793,32 +788,33 @@ private fun GroupSelector(
         ) {
             Icon(Icons.Rounded.Add, contentDescription = null, Modifier.size(20.dp))
         }
-        if (groups.firstOrNull { it.id == selectedId }?.isPreset == false) {
-            IconButton(onClick = onDelete) {
-                Icon(Icons.Rounded.DeleteOutline, contentDescription = "删除当前分组")
-            }
-        }
     }
 
-    presetPendingDeletion?.let { group ->
+    groupPendingDeletion?.let { group ->
         AlertDialog(
-            onDismissRequest = { presetPendingDeletion = null },
-            title = { Text("删除预设分组？") },
+            onDismissRequest = { groupPendingDeletion = null },
+            title = { Text(if (group.isPreset) "删除预设分组？" else "删除分组？") },
             text = {
-                Text("将删除预设分组《${group.name}》，不会删除设备中的歌曲。之后可以通过“恢复预设”找回。")
+                Text(
+                    if (group.isPreset) {
+                        "将删除预设分组《${group.name}》，不会删除设备中的歌曲。之后可以通过“恢复预设”找回。"
+                    } else {
+                        "将删除分组《${group.name}》，不会删除设备中的歌曲。"
+                    },
+                )
             },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        onHidePreset(group.id)
-                        presetPendingDeletion = null
+                        if (group.isPreset) onHidePreset(group.id) else onDelete(group.id)
+                        groupPendingDeletion = null
                     },
                 ) {
                     Text("删除", color = MaterialTheme.colorScheme.error)
                 }
             },
             dismissButton = {
-                TextButton(onClick = { presetPendingDeletion = null }) { Text("取消") }
+                TextButton(onClick = { groupPendingDeletion = null }) { Text("取消") }
             },
             shape = RoundedCornerShape(28.dp),
             containerColor = MaterialTheme.colorScheme.surface,
@@ -859,7 +855,7 @@ private fun GroupBlock(
             } else {
                 Modifier.combinedClickable(
                     onClick = onClick,
-                    onLongClickLabel = "删除预设分组",
+                    onLongClickLabel = "删除分组",
                     onLongClick = onLongClick,
                 )
             },
@@ -1032,7 +1028,7 @@ private fun TrackRow(
                         },
                     )
                 }
-                groups.filter { it.id != selectedGroupId }.forEach { group ->
+                groups.filter { it.id != selectedGroupId && it.id !in item.groupIds }.forEach { group ->
                     DropdownMenuItem(
                         text = { Text("加入「${group.name}」") },
                         onClick = {
