@@ -56,7 +56,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Add
-import androidx.compose.material.icons.rounded.Album
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.CastConnected
@@ -73,18 +72,14 @@ import androidx.compose.material.icons.rounded.Restore
 import androidx.compose.material.icons.rounded.Shuffle
 import androidx.compose.material.icons.rounded.SkipNext
 import androidx.compose.material.icons.rounded.SkipPrevious
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -282,12 +277,7 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
     }
 
     if (showCastPanel) {
-        ModalBottomSheet(
-            onDismissRequest = {
-                showCastPanel = false
-            },
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
+        YinlinBottomSheet(title = "Mac 实时歌词", onDismiss = { showCastPanel = false }) {
             CastPanel(
                 state = cast,
                 onConnectManually = viewModel::connectCastManually,
@@ -610,17 +600,14 @@ private fun CastPanel(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .navigationBarsPadding()
             .verticalScroll(rememberScrollState())
-            .padding(horizontal = 24.dp, vertical = 8.dp),
+            .padding(horizontal = 24.dp, vertical = 22.dp),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(Modifier.weight(1f)) {
-                Text("Mac 实时歌词", style = MaterialTheme.typography.headlineSmall)
-                Spacer(Modifier.height(4.dp))
                 Text(
                     castStatusText(state),
                     color = statusColor,
@@ -791,34 +778,26 @@ private fun GroupSelector(
     }
 
     groupPendingDeletion?.let { group ->
-        AlertDialog(
-            onDismissRequest = { groupPendingDeletion = null },
-            title = { Text(if (group.isPreset) "删除预设分组？" else "删除分组？") },
-            text = {
-                Text(
-                    if (group.isPreset) {
-                        "将删除预设分组《${group.name}》，不会删除设备中的歌曲。之后可以通过“恢复预设”找回。"
-                    } else {
-                        "将删除分组《${group.name}》，不会删除设备中的歌曲。"
-                    },
-                )
+        YinlinDialog(
+            title = group.name,
+            confirmLabel = "删除分组",
+            destructive = true,
+            onDismiss = { groupPendingDeletion = null },
+            onConfirm = {
+                if (group.isPreset) onHidePreset(group.id) else onDelete(group.id)
+                groupPendingDeletion = null
             },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        if (group.isPreset) onHidePreset(group.id) else onDelete(group.id)
-                        groupPendingDeletion = null
-                    },
-                ) {
-                    Text("删除", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { groupPendingDeletion = null }) { Text("取消") }
-            },
-            shape = RoundedCornerShape(28.dp),
-            containerColor = MaterialTheme.colorScheme.surface,
-        )
+        ) {
+            Text(
+                if (group.isPreset) {
+                    "确定删除这个预设分组吗？设备中的歌曲会保留，之后可通过“恢复预设”找回分组。"
+                } else {
+                    "确定删除这个分组吗？设备中的歌曲会保留。"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -1014,70 +993,47 @@ private fun TrackRow(
                 modifier = Modifier.padding(horizontal = 4.dp),
             )
         }
-        if (track != null) Box {
+        if (track != null) {
             IconButton(onClick = { menuOpen = true }) {
                 Icon(Icons.Rounded.MoreVert, contentDescription = "歌曲操作")
-            }
-            DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
-                if (selectedGroupId != null) {
-                    DropdownMenuItem(
-                        text = { Text("移出当前分组") },
-                        onClick = {
-                            menuOpen = false
-                            onRemoveFromGroup()
-                        },
-                    )
-                }
-                groups.filter { it.id != selectedGroupId && it.id !in item.groupIds }.forEach { group ->
-                    DropdownMenuItem(
-                        text = { Text("加入「${group.name}」") },
-                        onClick = {
-                            menuOpen = false
-                            onAddToGroup(group.id)
-                        },
-                    )
-                }
-                if (groups.isEmpty()) {
-                    DropdownMenuItem(text = { Text("请先创建分组") }, onClick = { menuOpen = false }, enabled = false)
-                }
-                DropdownMenuItem(
-                    text = { Text("删除歌曲文件", color = MaterialTheme.colorScheme.error) },
-                    onClick = {
-                        menuOpen = false
-                        deleteConfirmationOpen = true
-                    },
-                )
             }
         }
     }
 
-    if (deleteConfirmationOpen) {
-        AlertDialog(
-            onDismissRequest = { deleteConfirmationOpen = false },
-            title = { Text("删除《${item.title}》？") },
-            text = {
-                Text(
-                    if (track?.lyricUri == null) {
-                        "歌曲文件将从设备中永久删除，此操作无法撤销。"
-                    } else {
-                        "歌曲文件和关联歌词将从设备中永久删除，此操作无法撤销。"
-                    },
-                )
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        deleteConfirmationOpen = false
-                        onDelete()
-                    },
-                ) {
-                    Text("永久删除", color = MaterialTheme.colorScheme.error)
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { deleteConfirmationOpen = false }) { Text("取消") }
-            },
+    if (menuOpen) {
+        TrackActionsSheet(
+            item = item,
+            groups = groups,
+            selectedGroupId = selectedGroupId,
+            artworkLoader = artworkLoader,
+            onDismiss = { menuOpen = false },
+            onAddToGroup = onAddToGroup,
+            onRemoveFromGroup = onRemoveFromGroup,
+            onDelete = { deleteConfirmationOpen = true },
         )
+    }
+
+    if (deleteConfirmationOpen) {
+        YinlinDialog(
+            title = item.title,
+            confirmLabel = "永久删除",
+            destructive = true,
+            onDismiss = { deleteConfirmationOpen = false },
+            onConfirm = {
+                deleteConfirmationOpen = false
+                onDelete()
+            },
+        ) {
+            Text(
+                if (track?.lyricUri == null) {
+                    "歌曲文件将从设备中永久删除，此操作无法撤销。"
+                } else {
+                    "歌曲文件和关联歌词将从设备中永久删除，此操作无法撤销。"
+                },
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
@@ -1186,73 +1142,42 @@ private fun CreateGroupDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit)
     val focusRequester = remember { FocusRequester() }
     val trimmedName = name.trim()
 
-    LaunchedEffect(Unit) {
-        focusRequester.requestFocus()
-    }
-
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        icon = {
-            Box(
-                modifier = Modifier
-                    .size(48.dp)
-                    .clip(CircleShape)
-                    .background(MaterialTheme.colorScheme.primary.copy(alpha = .14f)),
-                contentAlignment = Alignment.Center,
-            ) {
-                Icon(
-                    Icons.Rounded.LibraryMusic,
-                    contentDescription = null,
-                    tint = MaterialTheme.colorScheme.primary,
-                )
-            }
-        },
-        title = { Text("新建歌曲分组", style = MaterialTheme.typography.headlineSmall) },
-        text = {
-            Column {
+    YinlinDialog(
+        title = "新建歌曲分组",
+        confirmLabel = "创建分组",
+        confirmEnabled = trimmedName.isNotEmpty(),
+        onDismiss = onDismiss,
+        onConfirm = { onCreate(trimmedName) },
+    ) {
+        LaunchedEffect(Unit) {
+            focusRequester.requestFocus()
+        }
+        Text(
+            "为收藏的歌曲起一个分组名称。",
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        OutlinedTextField(
+            value = name,
+            onValueChange = { name = it.take(20) },
+            modifier = Modifier.fillMaxWidth().focusRequester(focusRequester),
+            label = { Text("分组名称") },
+            placeholder = { Text("例如：银临的晚安曲") },
+            supportingText = {
                 Text(
-                    "给收藏的歌曲起一个容易找到的名字。",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.bodyMedium,
+                    "${name.length}/20",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = TextAlign.End,
                 )
-                Spacer(Modifier.height(16.dp))
-                OutlinedTextField(
-                    value = name,
-                    onValueChange = { name = it.take(20) },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .focusRequester(focusRequester),
-                    label = { Text("分组名称") },
-                    placeholder = { Text("例如：夜晚散步") },
-                    supportingText = {
-                        Text(
-                            "${name.length}/20",
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.End,
-                        )
-                    },
-                    leadingIcon = { Icon(Icons.Rounded.Album, contentDescription = null) },
-                    singleLine = true,
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
-                    keyboardActions = KeyboardActions(
-                        onDone = { if (trimmedName.isNotEmpty()) onCreate(trimmedName) },
-                    ),
-                )
-            }
-        },
-        confirmButton = {
-            Button(
-                onClick = { onCreate(trimmedName) },
-                enabled = trimmedName.isNotEmpty(),
-            ) {
-                Text("创建分组")
-            }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("取消") } },
-        shape = RoundedCornerShape(28.dp),
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 6.dp,
-    )
+            },
+            shape = RoundedCornerShape(14.dp),
+            singleLine = true,
+            keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
+            keyboardActions = KeyboardActions(
+                onDone = { if (trimmedName.isNotEmpty()) onCreate(trimmedName) },
+            ),
+        )
+    }
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -1371,10 +1296,7 @@ private fun NowPlayingScreen(
     }
 
     if (showQueue) {
-        ModalBottomSheet(
-            onDismissRequest = { showQueue = false },
-            containerColor = MaterialTheme.colorScheme.surface,
-        ) {
+        YinlinBottomSheet(title = "接下来播放", onDismiss = { showQueue = false }) {
             PlaybackQueue(
                 queue = state.queue,
                 currentIndex = state.currentQueueIndex,
@@ -1399,13 +1321,8 @@ private fun PlaybackQueue(
         modifier = Modifier
             .fillMaxWidth()
             .fillMaxHeight(.68f)
-            .navigationBarsPadding(),
+            .padding(top = 22.dp),
     ) {
-        Text(
-            "接下来播放",
-            style = MaterialTheme.typography.headlineSmall,
-            modifier = Modifier.padding(horizontal = 22.dp),
-        )
         Text(
             "${queue.size} 首歌曲",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
