@@ -10,6 +10,7 @@ import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
+import com.xiaoyinzi.player.XiaoYinZiApplication
 import com.xiaoyinzi.player.data.TrackEntity
 import com.xiaoyinzi.player.casting.MEDIA_EXTRA_LYRIC_URI
 import kotlinx.coroutines.CoroutineScope
@@ -97,22 +98,9 @@ class PlayerConnection(context: Context) : AutoCloseable {
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
     private var controller: MediaController? = null
     private var positionJob: Job? = null
-    private var deferredQueueReplacement: DeferredQueueReplacement? = null
+    private val deferredPlaybackQueue = (applicationContext as XiaoYinZiApplication).deferredPlaybackQueue
 
     private val listener = object : Player.Listener {
-        override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
-            if (
-                reason == Player.MEDIA_ITEM_TRANSITION_REASON_AUTO ||
-                reason == Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT
-            ) {
-                applyDeferredQueueReplacement()
-            }
-        }
-
-        override fun onPlaybackStateChanged(playbackState: Int) {
-            if (playbackState == Player.STATE_ENDED) applyDeferredQueueReplacement()
-        }
-
         override fun onEvents(player: Player, events: Player.Events) = publishState(player)
     }
 
@@ -134,7 +122,7 @@ class PlayerConnection(context: Context) : AutoCloseable {
 
     fun play(track: TrackEntity, queue: List<TrackEntity>) {
         val player = controller ?: return
-        deferredQueueReplacement = null
+        deferredPlaybackQueue.cancel()
         val mediaItems = queue.map { it.toMediaItem() }
         val selectedIndex = queue.indexOfFirst { it.uri == track.uri }.coerceAtLeast(0)
         player.setMediaItems(mediaItems, selectedIndex, 0)
@@ -142,22 +130,13 @@ class PlayerConnection(context: Context) : AutoCloseable {
         player.play()
     }
 
-    fun deferQueueReplacement(queue: List<TrackEntity>, anchorUri: String) {
-        val player = controller ?: return
-        deferredQueueReplacement = DeferredQueueReplacement(
-            tracks = queue,
-            anchorUri = anchorUri,
-        )
-        if (
-            player.currentMediaItem?.mediaId != anchorUri ||
-            player.playbackState == Player.STATE_ENDED
-        ) {
-            applyDeferredQueueReplacement()
-        }
-    }
+    internal fun capturePlaybackAnchor(): PlaybackAnchor? = deferredPlaybackQueue.captureAnchor()
+
+    internal fun deferQueueReplacement(queue: List<TrackEntity>, anchor: PlaybackAnchor) =
+        deferredPlaybackQueue.schedule(queue, anchor)
 
     fun cancelDeferredQueueReplacement() {
-        deferredQueueReplacement = null
+        deferredPlaybackQueue.cancel()
     }
 
     fun togglePlayPause() {
@@ -169,7 +148,7 @@ class PlayerConnection(context: Context) : AutoCloseable {
     }
 
     fun seekNext() {
-        if (!applyDeferredQueueReplacement()) controller?.seekToNextMediaItem()
+        if (!deferredPlaybackQueue.applyPending()) controller?.seekToNextMediaItem()
     }
 
     fun seekPrevious() {
@@ -226,28 +205,6 @@ class PlayerConnection(context: Context) : AutoCloseable {
         }
     }
 
-    private fun applyDeferredQueueReplacement(): Boolean {
-        val replacement = deferredQueueReplacement ?: return false
-        val player = controller ?: return false
-        deferredQueueReplacement = null
-
-        if (replacement.tracks.isEmpty()) {
-            player.clearMediaItems()
-            return true
-        }
-
-        val shouldPlay = player.playWhenReady
-        val mediaItems = replacement.tracks.map { it.toMediaItem() }
-        val selectedIndex = deferredQueueStartIndex(
-            queueUris = replacement.tracks.map(TrackEntity::uri),
-            anchorUri = replacement.anchorUri,
-        )
-        player.setMediaItems(mediaItems, selectedIndex, 0)
-        player.prepare()
-        if (shouldPlay) player.play()
-        return true
-    }
-
     private fun publishState(player: Player) {
         val metadata = player.mediaMetadata
         val timeline = player.currentTimeline
@@ -288,34 +245,28 @@ class PlayerConnection(context: Context) : AutoCloseable {
     }
 
     override fun close() {
-        deferredQueueReplacement = null
         positionJob?.cancel()
         controller?.removeListener(listener)
         controller?.release()
         controller = null
         scope.cancel()
     }
-
-    private data class DeferredQueueReplacement(
-        val tracks: List<TrackEntity>,
-        val anchorUri: String,
-    )
-
-    private fun TrackEntity.toMediaItem(): MediaItem = MediaItem.Builder()
-        .setMediaId(uri)
-        .setUri(uri)
-        .setMimeType(mimeType)
-        .setMediaMetadata(
-            MediaMetadata.Builder()
-                .setTitle(title)
-                .setArtist(artist)
-                .setAlbumTitle(album)
-                .setExtras(
-                    Bundle().apply {
-                        lyricUri?.let { putString(MEDIA_EXTRA_LYRIC_URI, it) }
-                    },
-                )
-                .build(),
-        )
-        .build()
 }
+
+internal fun TrackEntity.toMediaItem(): MediaItem = MediaItem.Builder()
+    .setMediaId(uri)
+    .setUri(uri)
+    .setMimeType(mimeType)
+    .setMediaMetadata(
+        MediaMetadata.Builder()
+            .setTitle(title)
+            .setArtist(artist)
+            .setAlbumTitle(album)
+            .setExtras(
+                Bundle().apply {
+                    lyricUri?.let { putString(MEDIA_EXTRA_LYRIC_URI, it) }
+                },
+            )
+            .build(),
+    )
+    .build()

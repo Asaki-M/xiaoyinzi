@@ -13,6 +13,12 @@ interface LibraryDao {
     @Query("SELECT * FROM tracks ORDER BY title COLLATE NOCASE")
     fun observeTracks(): Flow<List<TrackEntity>>
 
+    @Query("SELECT * FROM tracks ORDER BY title COLLATE NOCASE")
+    suspend fun allTracks(): List<TrackEntity>
+
+    @Query("SELECT EXISTS(SELECT 1 FROM music_groups WHERE id = :groupId)")
+    suspend fun groupExists(groupId: Long): Boolean
+
     @Query(
         """
         SELECT music_groups.id, music_groups.name, COUNT(track_group_cross_ref.trackUri) AS trackCount
@@ -26,6 +32,9 @@ interface LibraryDao {
 
     @Query("SELECT * FROM track_group_cross_ref")
     fun observeTrackGroups(): Flow<List<TrackGroupCrossRef>>
+
+    @Query("SELECT * FROM track_group_cross_ref WHERE groupId = :groupId")
+    suspend fun membershipsInGroup(groupId: Long): List<TrackGroupCrossRef>
 
     @Query(
         """
@@ -57,6 +66,9 @@ interface LibraryDao {
 
     @Insert(onConflict = OnConflictStrategy.IGNORE)
     suspend fun addTrackToGroup(crossRef: TrackGroupCrossRef)
+
+    @Insert(onConflict = OnConflictStrategy.IGNORE)
+    suspend fun addTracksToGroup(crossRefs: List<TrackGroupCrossRef>)
 
     @Delete
     suspend fun removeTrackFromGroup(crossRef: TrackGroupCrossRef)

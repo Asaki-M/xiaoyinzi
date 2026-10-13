@@ -136,6 +136,7 @@ private fun YinlinDialogContent(
 internal fun YinlinBottomSheet(
     title: String,
     onDismiss: () -> Unit,
+    header: (@Composable () -> Unit)? = null,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     ModalBottomSheet(
@@ -146,7 +147,7 @@ internal fun YinlinBottomSheet(
         scrimColor = MaterialTheme.colorScheme.onSurface.copy(alpha = .42f),
         dragHandle = null,
     ) {
-        YinlinOverlayHeader(title = title, onDismiss = onDismiss)
+        if (header != null) header() else YinlinOverlayHeader(title = title, onDismiss = onDismiss)
         content()
     }
 }

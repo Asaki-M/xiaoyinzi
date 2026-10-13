@@ -187,6 +187,8 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
                 onImportArchive = onImportArchive,
                 onCreateGroup = { showCreateGroup = true },
                 onSelectGroup = viewModel::selectGroup,
+                onCopyGroup = viewModel::copyGroup,
+                onSetDefaultGroup = viewModel::setDefaultGroup,
                 onDeleteGroup = viewModel::deleteGroup,
                 onHidePresetGroup = viewModel::hidePresetGroup,
                 onPlay = viewModel::play,
@@ -298,6 +300,8 @@ private fun LibraryScreen(
     onImportArchive: () -> Unit,
     onCreateGroup: () -> Unit,
     onSelectGroup: (String?) -> Unit,
+    onCopyGroup: (String?, String) -> Unit,
+    onSetDefaultGroup: (String?) -> Unit,
     onDeleteGroup: (String) -> Unit,
     onHidePresetGroup: (String) -> Unit,
     onPlay: (TrackEntity) -> Unit,
@@ -319,10 +323,13 @@ private fun LibraryScreen(
         GroupSelector(
             groups = state.groups,
             selectedId = state.selectedGroupId,
+            defaultId = state.defaultGroupId,
             onSelect = onSelectGroup,
             onCreate = onCreateGroup,
             onDelete = onDeleteGroup,
             onHidePreset = onHidePresetGroup,
+            onCopy = onCopyGroup,
+            onSetDefault = onSetDefaultGroup,
         )
 
         if (state.tracks.isEmpty()) {
@@ -718,12 +725,17 @@ private fun castStatusText(state: CastUiState): String = when (state.connectionS
 private fun GroupSelector(
     groups: List<LibraryGroupUiState>,
     selectedId: String?,
+    defaultId: String?,
     onSelect: (String?) -> Unit,
     onCreate: () -> Unit,
     onDelete: (String) -> Unit,
     onHidePreset: (String) -> Unit,
+    onCopy: (String?, String) -> Unit,
+    onSetDefault: (String?) -> Unit,
 ) {
-    var groupPendingDeletion by remember { mutableStateOf<LibraryGroupUiState?>(null) }
+    var groupPendingActions by remember { mutableStateOf<GroupActionTarget?>(null) }
+    var groupPendingCopy by remember { mutableStateOf<GroupActionTarget?>(null) }
+    var groupPendingDeletion by remember { mutableStateOf<GroupActionTarget?>(null) }
 
     FlowRow(
         modifier = Modifier
@@ -735,7 +747,9 @@ private fun GroupSelector(
         GroupBlock(
             label = "全部",
             selected = selectedId == null,
+            isDefault = defaultId == null,
             onClick = { onSelect(null) },
+            onLongClick = { groupPendingActions = GroupActionTarget(id = null, name = "全部") },
         ) {
             Icon(Icons.Rounded.LibraryMusic, contentDescription = null, Modifier.size(20.dp))
         }
@@ -745,8 +759,11 @@ private fun GroupSelector(
                 GroupBlock(
                     label = group.name,
                     selected = selectedId == group.id,
+                    isDefault = defaultId == group.id,
                     onClick = { onSelect(group.id) },
-                    onLongClick = { groupPendingDeletion = group },
+                    onLongClick = {
+                        groupPendingActions = GroupActionTarget(group.id, group.name, group.isPreset, artworkRes)
+                    },
                 ) {
                     Image(
                         painter = painterResource(artworkRes),
@@ -761,8 +778,11 @@ private fun GroupSelector(
                 GroupBlock(
                     label = group.name,
                     selected = selectedId == group.id,
+                    isDefault = defaultId == group.id,
                     onClick = { onSelect(group.id) },
-                    onLongClick = { groupPendingDeletion = group },
+                    onLongClick = {
+                        groupPendingActions = GroupActionTarget(group.id, group.name, group.isPreset, artworkRes)
+                    },
                 ) {
                     Icon(Icons.Rounded.LibraryMusic, contentDescription = null, Modifier.size(20.dp))
                 }
@@ -777,6 +797,51 @@ private fun GroupSelector(
         }
     }
 
+    Text(
+        "长按分组可复制、设为默认或删除",
+        modifier = Modifier.padding(start = 22.dp, end = 22.dp, bottom = 4.dp),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+
+    groupPendingActions?.let { group ->
+        GroupActionsSheet(
+            group = group,
+            isDefault = group.id == defaultId,
+            onDismiss = { groupPendingActions = null },
+            onCopy = {
+                groupPendingActions = null
+                groupPendingCopy = group
+            },
+            onSetDefault = {
+                groupPendingActions = null
+                onSetDefault(group.id)
+            },
+            onDelete = {
+                groupPendingActions = null
+                groupPendingDeletion = group
+            },
+        )
+    }
+
+    groupPendingCopy?.let { group ->
+        CreateGroupDialog(
+            onDismiss = { groupPendingCopy = null },
+            onCreate = {
+                onCopy(group.id, it)
+                groupPendingCopy = null
+            },
+            initialName = "${group.name.take(17)} 副本",
+            title = "复制「${group.name}」",
+            confirmLabel = "复制分组",
+            description = if (group.isPreset) {
+                "将已导入的歌曲复制到新分组，之后可单独添加或移出歌曲。"
+            } else {
+                "将歌曲列表复制到新分组，之后可单独添加或移出歌曲。"
+            },
+        )
+    }
+
     groupPendingDeletion?.let { group ->
         YinlinDialog(
             title = group.name,
@@ -784,7 +849,9 @@ private fun GroupSelector(
             destructive = true,
             onDismiss = { groupPendingDeletion = null },
             onConfirm = {
-                if (group.isPreset) onHidePreset(group.id) else onDelete(group.id)
+                group.id?.let { id ->
+                    if (group.isPreset) onHidePreset(id) else onDelete(id)
+                }
                 groupPendingDeletion = null
             },
         ) {
@@ -808,6 +875,7 @@ private fun GroupBlock(
     selected: Boolean,
     onClick: () -> Unit,
     onLongClick: (() -> Unit)? = null,
+    isDefault: Boolean = false,
     leadingContent: @Composable () -> Unit,
 ) {
     val containerColor by animateColorAsState(
@@ -834,7 +902,7 @@ private fun GroupBlock(
             } else {
                 Modifier.combinedClickable(
                     onClick = onClick,
-                    onLongClickLabel = "删除分组",
+                    onLongClickLabel = "分组操作",
                     onLongClick = onLongClick,
                 )
             },
@@ -859,6 +927,14 @@ private fun GroupBlock(
                     style = MaterialTheme.typography.labelMedium,
                     fontWeight = if (selected) FontWeight.SemiBold else FontWeight.Medium,
                 )
+                if (isDefault) {
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        "默认",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
             }
         }
 
@@ -1137,14 +1213,21 @@ private fun MiniPlayer(
 }
 
 @Composable
-private fun CreateGroupDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit) {
-    var name by remember { mutableStateOf("") }
+private fun CreateGroupDialog(
+    onDismiss: () -> Unit,
+    onCreate: (String) -> Unit,
+    initialName: String = "",
+    title: String = "新建歌曲分组",
+    confirmLabel: String = "创建分组",
+    description: String = "为收藏的歌曲起一个分组名称。",
+) {
+    var name by remember(initialName) { mutableStateOf(initialName.take(20)) }
     val focusRequester = remember { FocusRequester() }
     val trimmedName = name.trim()
 
     YinlinDialog(
-        title = "新建歌曲分组",
-        confirmLabel = "创建分组",
+        title = title,
+        confirmLabel = confirmLabel,
         confirmEnabled = trimmedName.isNotEmpty(),
         onDismiss = onDismiss,
         onConfirm = { onCreate(trimmedName) },
@@ -1153,7 +1236,7 @@ private fun CreateGroupDialog(onDismiss: () -> Unit, onCreate: (String) -> Unit)
             focusRequester.requestFocus()
         }
         Text(
-            "为收藏的歌曲起一个分组名称。",
+            description,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.bodyMedium,
         )
