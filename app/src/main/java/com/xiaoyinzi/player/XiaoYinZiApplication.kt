@@ -11,6 +11,7 @@ import com.xiaoyinzi.player.library.ManagedLibraryFiles
 import com.xiaoyinzi.player.lyrics.LrcxParser
 import com.xiaoyinzi.player.data.AppDatabase
 import com.xiaoyinzi.player.playback.DeferredPlaybackQueue
+import com.xiaoyinzi.player.playback.LibraryPlaybackController
 
 class XiaoYinZiApplication : Application() {
     val managedMusicDirectory by lazy {
@@ -28,6 +29,9 @@ class XiaoYinZiApplication : Application() {
     }
     val managedLibraryFiles by lazy { ManagedLibraryFiles(managedMusicDirectory) }
     val lyricParser by lazy { LrcxParser(contentResolver) }
-    val lyricsCastManager by lazy { LyricsCastManager(this) }
+    val lyricsCastManager by lazy { LyricsCastManager(this, libraryPlaybackController) }
     internal val deferredPlaybackQueue by lazy { DeferredPlaybackQueue() }
+    internal val libraryPlaybackController by lazy {
+        LibraryPlaybackController(this, libraryRepository, deferredPlaybackQueue)
+    }
 }

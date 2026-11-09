@@ -6,6 +6,8 @@ import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.Player
 import com.xiaoyinzi.player.lyrics.LrcxParser
+import com.xiaoyinzi.player.playback.LibraryPlaybackController
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -23,7 +25,10 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.decodeFromJsonElement
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.BufferedReader
@@ -40,7 +45,10 @@ import java.security.MessageDigest
 import java.util.UUID
 import kotlin.math.min
 
-class LyricsCastManager(context: Context) : AutoCloseable {
+class LyricsCastManager internal constructor(
+    context: Context,
+    private val libraryPlayback: LibraryPlaybackController,
+) : AutoCloseable {
     private val applicationContext = context.applicationContext
     private val preferences = applicationContext.getSharedPreferences(PREFERENCES_NAME, 0)
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -65,6 +73,7 @@ class LyricsCastManager(context: Context) : AutoCloseable {
     private var player: Player? = null
     private var lyricParser: LrcxParser? = null
     private var currentTrack: TrackMessage? = null
+    private var controlsSupported = false
 
     private val playerListener = object : Player.Listener {
         override fun onMediaItemTransition(mediaItem: MediaItem?, reason: Int) {
@@ -89,6 +98,9 @@ class LyricsCastManager(context: Context) : AutoCloseable {
     }
 
     init {
+        scope.launch {
+            libraryPlayback.library.collect { sendLibrarySnapshot() }
+        }
         if (_state.value.enabled) storedDevice()?.let(::reconnect)
     }
 
@@ -174,11 +186,13 @@ class LyricsCastManager(context: Context) : AutoCloseable {
         syncJob?.cancel()
         syncJob = null
         currentTrack = null
+        scope.launch { sendPlaybackCleared() }
     }
 
     private fun loadCurrentTrack(mediaItem: MediaItem?) {
         if (mediaItem == null) {
             currentTrack = null
+            scope.launch { sendPlaybackCleared() }
             return
         }
         val mediaId = mediaItem.mediaId
@@ -207,7 +221,10 @@ class LyricsCastManager(context: Context) : AutoCloseable {
 
     private fun sendTrackSnapshot() {
         if (_state.value.connectionStatus != CastConnectionStatus.CONNECTED) return
-        val track = currentTrack ?: return
+        val track = currentTrack ?: run {
+            scope.launch { sendPlaybackCleared() }
+            return
+        }
         val activePlayer = player
         val snapshot = if (activePlayer == null) track else track.copy(
             durationMs = activePlayer.safeDuration(),
@@ -307,7 +324,9 @@ class LyricsCastManager(context: Context) : AutoCloseable {
                 val line = input.readLine() ?: break
                 currentCoroutineContext().ensureActive()
                 connection.soTimeout = 0
-                handleIncoming(line)
+                withContext(Dispatchers.Main.immediate) {
+                    if (socket === connection) handleIncoming(line)
+                }
             }
         } finally {
             runCatching { connection.close() }
@@ -315,7 +334,7 @@ class LyricsCastManager(context: Context) : AutoCloseable {
         }
     }
 
-    private fun handleIncoming(line: String) {
+    private suspend fun handleIncoming(line: String) {
         runCatching {
             val payload = json.parseToJsonElement(line).jsonObject
             when (payload["type"]?.jsonPrimitive?.content) {
@@ -328,6 +347,8 @@ class LyricsCastManager(context: Context) : AutoCloseable {
                 }
 
                 "paired" -> {
+                    controlsSupported = payload["capabilities"]?.jsonArray
+                        ?.any { it.jsonPrimitive.content == "playback_control" } == true
                     payload["token"]?.jsonPrimitive?.content?.let { token ->
                         preferences.edit { putString(KEY_TOKEN, token) }
                     }
@@ -338,10 +359,13 @@ class LyricsCastManager(context: Context) : AutoCloseable {
                             message = "配对成功",
                         )
                     }
-                    scope.launch { sendTrackSnapshot() }
+                    sendTrackSnapshot()
+                    sendLibrarySnapshot()
                 }
 
                 "ready" -> {
+                    controlsSupported = payload["capabilities"]?.jsonArray
+                        ?.any { it.jsonPrimitive.content == "playback_control" } == true
                     _state.update {
                         it.copy(
                             connectionStatus = CastConnectionStatus.CONNECTED,
@@ -349,7 +373,42 @@ class LyricsCastManager(context: Context) : AutoCloseable {
                             message = "歌词同步中",
                         )
                     }
-                    scope.launch { sendTrackSnapshot() }
+                    sendTrackSnapshot()
+                    sendLibrarySnapshot()
+                }
+
+                "control" -> {
+                    if (!controlsSupported || _state.value.connectionStatus != CastConnectionStatus.CONNECTED) return
+                    val command = json.decodeFromJsonElement<ControlMessage>(payload)
+                    val result = runCatching {
+                        val completed = withTimeoutOrNull(4_000L) {
+                            when (command.action) {
+                                "next" -> libraryPlayback.next()
+                                "previous" -> libraryPlayback.previous()
+                                "toggle_play_pause" -> libraryPlayback.togglePlayPause()
+                                "select_group" -> libraryPlayback.selectRemoteGroup(command.groupId)
+                                "play_track" -> {
+                                    val track = libraryPlayback.library.value.tracks.firstOrNull {
+                                        sha256(it.uri) == command.trackId
+                                    }
+                                    requireNotNull(track) { "歌曲已不在当前分组，请重新选择" }
+                                    libraryPlayback.playTrack(track.uri)
+                                }
+                                else -> error("不支持的播放操作")
+                            }
+                            true
+                        }
+                        check(completed == true) { "手机操作超时，请重试" }
+                    }.onFailure { if (it is CancellationException) throw it }
+                    sendLibrarySnapshot()
+                    sendSync()
+                    sendMessage(
+                        ControlResultMessage(
+                            requestId = command.requestId,
+                            success = result.isSuccess,
+                            message = result.exceptionOrNull()?.localizedMessage,
+                        ),
+                    )
                 }
 
                 "error" -> _state.update {
@@ -357,8 +416,31 @@ class LyricsCastManager(context: Context) : AutoCloseable {
                 }
             }
         }.onFailure { error ->
+            if (error is CancellationException) throw error
             _state.update { it.copy(message = "无法解析 Mac 消息：${error.localizedMessage}") }
         }
+    }
+
+    private suspend fun sendPlaybackCleared() {
+        if (
+            controlsSupported && _state.value.connectionStatus == CastConnectionStatus.CONNECTED &&
+            player?.currentMediaItem == null
+        ) {
+            sendMessage(PlaybackClearedMessage())
+        }
+    }
+
+    private suspend fun sendLibrarySnapshot() {
+        if (!controlsSupported || _state.value.connectionStatus != CastConnectionStatus.CONNECTED) return
+        val snapshot = libraryPlayback.library.value
+        if (snapshot.groups.isEmpty()) return
+        sendMessage(
+            LibraryMessage(
+                selectedGroupId = snapshot.selectedGroupId,
+                groups = snapshot.groups.map { CastLibraryGroup(it.id, it.name, it.trackCount) },
+                tracks = snapshot.tracks.map { CastLibraryTrack(sha256(it.uri), it.title, it.artist, it.album) },
+            ),
+        )
     }
 
     private suspend inline fun <reified T> sendMessage(message: T) {
@@ -404,6 +486,7 @@ class LyricsCastManager(context: Context) : AutoCloseable {
         runCatching { writer?.close() }
         writer = null
         socket = null
+        controlsSupported = false
     }
 
     override fun close() {

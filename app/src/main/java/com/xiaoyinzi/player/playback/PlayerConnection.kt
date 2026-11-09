@@ -98,7 +98,7 @@ class PlayerConnection(context: Context) : AutoCloseable {
     val state: StateFlow<PlayerUiState> = _state.asStateFlow()
     private var controller: MediaController? = null
     private var positionJob: Job? = null
-    private val deferredPlaybackQueue = (applicationContext as XiaoYinZiApplication).deferredPlaybackQueue
+    private val libraryPlayback = (applicationContext as XiaoYinZiApplication).libraryPlaybackController
 
     private val listener = object : Player.Listener {
         override fun onEvents(player: Player, events: Player.Events) = publishState(player)
@@ -122,21 +122,12 @@ class PlayerConnection(context: Context) : AutoCloseable {
 
     fun play(track: TrackEntity, queue: List<TrackEntity>) {
         val player = controller ?: return
-        deferredPlaybackQueue.cancel()
+        libraryPlayback.cancelPendingQueueChange()
         val mediaItems = queue.map { it.toMediaItem() }
         val selectedIndex = queue.indexOfFirst { it.uri == track.uri }.coerceAtLeast(0)
         player.setMediaItems(mediaItems, selectedIndex, 0)
         player.prepare()
         player.play()
-    }
-
-    internal fun capturePlaybackAnchor(): PlaybackAnchor? = deferredPlaybackQueue.captureAnchor()
-
-    internal fun deferQueueReplacement(queue: List<TrackEntity>, anchor: PlaybackAnchor) =
-        deferredPlaybackQueue.schedule(queue, anchor)
-
-    fun cancelDeferredQueueReplacement() {
-        deferredPlaybackQueue.cancel()
     }
 
     fun togglePlayPause() {
@@ -148,7 +139,7 @@ class PlayerConnection(context: Context) : AutoCloseable {
     }
 
     fun seekNext() {
-        if (!deferredPlaybackQueue.applyPending()) controller?.seekToNextMediaItem()
+        if (controller != null) scope.launch { libraryPlayback.next() }
     }
 
     fun seekPrevious() {

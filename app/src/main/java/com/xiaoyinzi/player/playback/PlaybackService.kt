@@ -42,6 +42,7 @@ class PlaybackService : MediaSessionService() {
         player.addListener(playbackModeListener)
         val app = application as XiaoYinZiApplication
         app.deferredPlaybackQueue.bindPlayer(player)
+        app.libraryPlaybackController.bindPlayer(player)
         app.lyricsCastManager.bindPlayer(player, app.lyricParser)
         val sessionActivity = PendingIntent.getActivity(
             this,
@@ -57,6 +58,7 @@ class PlaybackService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
     override fun onDestroy() {
+        (application as XiaoYinZiApplication).libraryPlaybackController.unbindPlayer()
         (application as XiaoYinZiApplication).deferredPlaybackQueue.unbindPlayer()
         (application as XiaoYinZiApplication).lyricsCastManager.unbindPlayer()
         mediaSession?.run {

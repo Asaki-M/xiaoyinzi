@@ -84,3 +84,36 @@ data class SyncMessage(
     val playbackSpeed: Float,
     val sentAtEpochMs: Long,
 )
+
+@Serializable
+data class CastLibraryGroup(val id: String?, val name: String, val trackCount: Int)
+
+@Serializable
+data class CastLibraryTrack(val trackId: String, val title: String, val artist: String, val album: String)
+
+@Serializable
+data class LibraryMessage(
+    val type: String = "library",
+    val selectedGroupId: String?,
+    val groups: List<CastLibraryGroup>,
+    val tracks: List<CastLibraryTrack>,
+)
+
+@Serializable
+data class ControlMessage(
+    val requestId: String,
+    val action: String,
+    val trackId: String? = null,
+    val groupId: String? = null,
+)
+
+@Serializable
+data class ControlResultMessage(
+    val type: String = "control_result",
+    val requestId: String,
+    val success: Boolean,
+    val message: String? = null,
+)
+
+@Serializable
+data class PlaybackClearedMessage(val type: String = "playback_cleared")

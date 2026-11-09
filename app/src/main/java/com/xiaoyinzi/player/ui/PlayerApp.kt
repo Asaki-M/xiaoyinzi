@@ -704,7 +704,7 @@ private fun CastPanel(
 
         Spacer(Modifier.height(18.dp))
         Text(
-            "仅向已连接的 Mac 发送歌曲名、播放位置和歌词，不发送音乐文件。",
+            "向已配对的 Mac 同步歌词和曲库分组，可在 Mac 上切歌；音乐仍在手机播放。",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             style = MaterialTheme.typography.labelMedium,
         )
