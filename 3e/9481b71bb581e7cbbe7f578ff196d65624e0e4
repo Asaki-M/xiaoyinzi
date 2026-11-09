@@ -1,0 +1,41 @@
+app/src/main/java/com/xiaoyinzi/player/playback/PlayerConnection.kt
+  s_058865bcb5024c::t_9f1b9ab0891f12 101,125
+  s_058865bcb5024c::t_9d181efced442f 142
+app/src/main/java/com/xiaoyinzi/player/playback/LibraryPlaybackController.kt
+  s_058865bcb5024c::t_9f1b9ab0891f12 1-67,69-97,100-110,112-143
+  s_058865bcb5024c::t_9d181efced442f 68
+  s_058865bcb5024c::t_c3d7f09e43aa36 98-99,111
+app/src/main/java/com/xiaoyinzi/player/casting/LyricsCastManager.kt
+  s_058865bcb5024c::t_ab37c6035bd4bb 189
+  s_058865bcb5024c::t_c3d7f09e43aa36 10,28,195,224-227,384-395,397,399,401-402,419,424-430
+  s_058865bcb5024c::t_5146dff1434ec9 9,30-31,48-51,76,101-103,327-329,337,350-351,362-363,367-368,376-383,396,398,400,403-411,431-445,489
+app/src/main/java/com/xiaoyinzi/player/casting/CastProtocol.kt
+  s_058865bcb5024c::t_5146dff1434ec9 87-116
+  s_058865bcb5024c::t_c3d7f09e43aa36 117-119
+app/src/main/java/com/xiaoyinzi/player/MainViewModel.kt
+  s_058865bcb5024c::t_9f1b9ab0891f12 80-81,222,312
+app/src/main/java/com/xiaoyinzi/player/ui/PlayerApp.kt
+  s_058865bcb5024c::t_ab37c6035bd4bb 707
+app/build.gradle.kts
+  s_058865bcb5024c::t_af486874b9a90a 17-18
+app/src/main/java/com/xiaoyinzi/player/XiaoYinZiApplication.kt
+  s_058865bcb5024c::t_9f1b9ab0891f12 14,32,34-36
+app/src/main/java/com/xiaoyinzi/player/playback/PlaybackService.kt
+  s_058865bcb5024c::t_9f1b9ab0891f12 45,61
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "3e9481b71bb581e7cbbe7f578ff196d65624e0e4",
+  "prompts": {},
+  "sessions": {
+    "s_058865bcb5024c": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1bf2b-2c53-72d0-9234-cc068d7b618d",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
