@@ -10,10 +10,12 @@ import com.xiaoyinzi.player.library.LibraryScanner
 import com.xiaoyinzi.player.library.ManagedLibraryFiles
 import com.xiaoyinzi.player.lyrics.LrcxParser
 import com.xiaoyinzi.player.data.AppDatabase
+import com.xiaoyinzi.player.data.ThemeRepository
 import com.xiaoyinzi.player.playback.DeferredPlaybackQueue
 import com.xiaoyinzi.player.playback.LibraryPlaybackController
 
 class XiaoYinZiApplication : Application() {
+    val themeRepository by lazy { ThemeRepository(this) }
     val managedMusicDirectory by lazy {
         (getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: filesDir)
             .resolve("xiaozi")

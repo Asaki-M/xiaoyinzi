@@ -5,7 +5,6 @@ import androidx.compose.animation.core.MutableTransitionState
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.scaleIn
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -45,10 +44,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.tooling.preview.Preview
@@ -56,7 +53,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
-import com.xiaoyinzi.player.R
+import com.xiaoyinzi.player.data.ThemeBackgroundSlot
 
 @Composable
 internal fun YinlinDialog(
@@ -154,15 +151,13 @@ internal fun YinlinBottomSheet(
 
 @Composable
 private fun YinlinOverlayHeader(title: String, onDismiss: (() -> Unit)? = null) {
-    val paper = Color(0xFFF1E3DF)
+    val paper = MaterialTheme.colorScheme.surface
     Box(Modifier.fillMaxWidth().heightIn(min = 88.dp).background(paper)) {
         Box(Modifier.matchParentSize()) {
-            Image(
-                painter = painterResource(R.drawable.yinlin_portrait),
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                alignment = Alignment.TopCenter,
-                modifier = Modifier.align(Alignment.CenterEnd).fillMaxWidth(.55f).fillMaxHeight(),
+            ThemeArtwork(
+                slot = ThemeBackgroundSlot.OVERLAY,
+                modifier = Modifier.align(Alignment.CenterEnd).fillMaxWidth(.55f).fillMaxHeight()
+                    .alpha(((1f - LocalAppTheme.current.imageMask) * 4f).coerceIn(0f, 1f)),
             )
         }
         Box(

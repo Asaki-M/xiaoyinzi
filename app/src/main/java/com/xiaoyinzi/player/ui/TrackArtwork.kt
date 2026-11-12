@@ -47,7 +47,7 @@ internal fun TrackArtwork(
             Icon(
                 Icons.Rounded.Album,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = readableText(MaterialTheme.colorScheme.surfaceVariant),
             )
         }
 

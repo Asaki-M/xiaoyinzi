@@ -15,7 +15,6 @@ import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.Image
@@ -25,7 +24,6 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
@@ -44,9 +42,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
@@ -54,24 +50,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.Add
 import androidx.compose.material.icons.rounded.Archive
 import androidx.compose.material.icons.rounded.Cast
 import androidx.compose.material.icons.rounded.CastConnected
 import androidx.compose.material.icons.rounded.Close
-import androidx.compose.material.icons.rounded.KeyboardArrowDown
 import androidx.compose.material.icons.rounded.LibraryMusic
 import androidx.compose.material.icons.rounded.MoreVert
+import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Refresh
-import androidx.compose.material.icons.rounded.Repeat
-import androidx.compose.material.icons.rounded.RepeatOne
 import androidx.compose.material.icons.rounded.Restore
-import androidx.compose.material.icons.rounded.Shuffle
-import androidx.compose.material.icons.rounded.SkipNext
-import androidx.compose.material.icons.rounded.SkipPrevious
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -83,7 +73,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Slider
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
@@ -100,7 +89,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
-import androidx.compose.ui.BiasAlignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
@@ -111,10 +99,7 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.asImageBitmap
-import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
@@ -131,13 +116,11 @@ import com.xiaoyinzi.player.LibraryTrackUiState
 import com.xiaoyinzi.player.MainViewModel
 import com.xiaoyinzi.player.data.GroupSummary
 import com.xiaoyinzi.player.data.TrackEntity
+import com.xiaoyinzi.player.data.ThemeBackgroundSlot
 import com.xiaoyinzi.player.casting.CastConnectionStatus
 import com.xiaoyinzi.player.casting.CastUiState
-import com.xiaoyinzi.player.lyrics.LyricLine
 import com.xiaoyinzi.player.library.TrackArtworkLoader
-import com.xiaoyinzi.player.playback.PlaybackMode
 import com.xiaoyinzi.player.playback.PlayerUiState
-import com.xiaoyinzi.player.playback.QueueItemUiState
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -146,11 +129,14 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
     val player by viewModel.playerState.collectAsStateWithLifecycle()
     val lyrics by viewModel.lyrics.collectAsStateWithLifecycle()
     val cast by viewModel.castState.collectAsStateWithLifecycle()
+    val themeSettings by viewModel.themeSettings.collectAsStateWithLifecycle()
     var showCreateGroup by remember { mutableStateOf(false) }
-    var showNowPlaying by remember { mutableStateOf(false) }
+    var showNowPlaying by rememberSaveable { mutableStateOf(false) }
     var showLyrics by rememberSaveable { mutableStateOf(false) }
     var showCastPanel by remember { mutableStateOf(false) }
     var showLibraryActions by remember { mutableStateOf(false) }
+    var showThemeManager by rememberSaveable { mutableStateOf(false) }
+    var showThemePicker by rememberSaveable { mutableStateOf(false) }
     val snackbarHost = remember { SnackbarHostState() }
     val artworkLoader = remember {
         TrackArtworkLoader(viewModel.getApplication())
@@ -229,10 +215,15 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
                 scanning = library.scanning,
                 castConnected = cast.connectionStatus == CastConnectionStatus.CONNECTED,
                 hiddenPresetGroupCount = library.hiddenPresetGroupCount,
+                themeName = themeSettings.activeTheme.name,
                 onClose = { showLibraryActions = false },
                 onOpenCast = {
                     showLibraryActions = false
                     showCastPanel = true
+                },
+                onOpenThemes = {
+                    showLibraryActions = false
+                    showThemeManager = true
                 },
                 onImportArchive = {
                     showLibraryActions = false
@@ -275,7 +266,20 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
             onShowLyricsChange = { showLyrics = it },
             onCyclePlaybackMode = viewModel.player::cyclePlaybackMode,
             onSelectQueueItem = viewModel.player::playQueueItem,
+            onOpenThemes = { showThemePicker = true },
         )
+    }
+
+    if (showThemePicker) {
+        ThemeQuickPicker(
+            repository = viewModel.themeRepository,
+            onDismiss = { showThemePicker = false },
+            onManage = { showThemePicker = false; showThemeManager = true },
+        )
+    }
+
+    if (showThemeManager) {
+        ThemeManagerScreen(viewModel.themeRepository, artworkLoader, onDismiss = { showThemeManager = false })
     }
 
     if (showCastPanel) {
@@ -373,12 +377,9 @@ private fun LibraryHeader(
             .fillMaxWidth()
             .height(198.dp),
     ) {
-        Image(
-            painter = painterResource(R.drawable.yinlin_portrait),
-            contentDescription = "银临",
-            modifier = Modifier.fillMaxSize(),
-            contentScale = ContentScale.Crop,
-            alignment = Alignment.CenterEnd,
+        ThemeArtwork(
+            ThemeBackgroundSlot.HEADER,
+            Modifier.fillMaxSize().alpha(((1f - LocalAppTheme.current.imageMask) * 4f).coerceIn(0f, 1f)),
         )
         Box(
             modifier = Modifier
@@ -424,8 +425,10 @@ private fun LibraryActionsSidebar(
     scanning: Boolean,
     castConnected: Boolean,
     hiddenPresetGroupCount: Int,
+    themeName: String,
     onClose: () -> Unit,
     onOpenCast: () -> Unit,
+    onOpenThemes: () -> Unit,
     onImportArchive: () -> Unit,
     onRescan: () -> Unit,
     onRestorePresetGroups: () -> Unit,
@@ -477,6 +480,16 @@ private fun LibraryActionsSidebar(
                 enabled = !scanning,
                 onClick = onRescan,
             )
+            HorizontalDivider(
+                modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
+                color = MaterialTheme.colorScheme.outlineVariant,
+            )
+            SidebarAction(
+                icon = Icons.Rounded.Palette,
+                title = "外观与主题",
+                supportingText = themeName,
+                onClick = onOpenThemes,
+            )
             if (hiddenPresetGroupCount > 0) {
                 HorizontalDivider(
                     modifier = Modifier.padding(horizontal = 20.dp, vertical = 10.dp),
@@ -503,12 +516,9 @@ private fun LibraryActionsSidebarBackdrop(modifier: Modifier = Modifier) {
                 .fillMaxWidth()
                 .fillMaxHeight(.95f),
         ) {
-            Image(
-                painter = painterResource(R.drawable.yinlin_sidebar),
-                contentDescription = null,
-                modifier = Modifier.matchParentSize(),
-                contentScale = ContentScale.Crop,
-                alignment = BiasAlignment(horizontalBias = .65f, verticalBias = 1f),
+            ThemeArtwork(
+                ThemeBackgroundSlot.SIDEBAR,
+                Modifier.matchParentSize().alpha(((1f - LocalAppTheme.current.imageMask) * 5f).coerceIn(0f, 1f)),
             )
             Box(
                 modifier = Modifier
@@ -890,7 +900,7 @@ private fun GroupBlock(
         targetValue = if (selected) {
             MaterialTheme.colorScheme.onPrimaryContainer
         } else {
-            MaterialTheme.colorScheme.onSurfaceVariant
+            readableText(MaterialTheme.colorScheme.surfaceVariant)
         },
         label = "album group content",
     )
@@ -932,7 +942,7 @@ private fun GroupBlock(
                     Text(
                         "默认",
                         style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
+                        color = readableAccent(MaterialTheme.colorScheme.primary, containerColor),
                     )
                 }
             }
@@ -1173,6 +1183,7 @@ private fun MiniPlayer(
     onOpen: () -> Unit,
     onTogglePlay: () -> Unit,
 ) {
+    val panelInk = readableText(MaterialTheme.colorScheme.surfaceVariant)
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -1194,12 +1205,12 @@ private fun MiniPlayer(
                 modifier = Modifier.size(46.dp),
             )
             Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                Text(state.title, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
+                Text(state.title, color = panelInk, maxLines = 1, overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.titleMedium)
                 Text(
                     playerSupportingText(state.album, state.artist),
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    color = secondaryText(MaterialTheme.colorScheme.surfaceVariant),
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -1263,399 +1274,7 @@ private fun CreateGroupDialog(
     }
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
-@Composable
-private fun NowPlayingScreen(
-    state: PlayerUiState,
-    lyrics: List<LyricLine>,
-    showLyrics: Boolean,
-    artworkLoader: TrackArtworkLoader,
-    onClose: () -> Unit,
-    onTogglePlay: () -> Unit,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-    onSeek: (Long) -> Unit,
-    onShowLyricsChange: (Boolean) -> Unit,
-    onCyclePlaybackMode: () -> Unit,
-    onSelectQueueItem: (Int) -> Unit,
-) {
-    var showQueue by remember { mutableStateOf(false) }
-    val currentLine = lyrics.indexOfLast { it.timeMs <= state.positionMs }
-    val lyricListState = key(state.currentTrackUri) {
-        rememberLazyListState()
-    }
-
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .pointerInput(Unit) {
-                awaitPointerEventScope {
-                    while (true) awaitPointerEvent()
-                }
-            }
-            .background(MaterialTheme.colorScheme.background),
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .statusBarsPadding()
-                .navigationBarsPadding()
-                .padding(horizontal = 22.dp),
-        ) {
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    if (showLyrics) "银临 · 歌词" else "银临 · 正在播放",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-                Row {
-                    IconButton(onClick = { showQueue = true }) {
-                        Icon(Icons.AutoMirrored.Rounded.QueueMusic, contentDescription = "播放队列")
-                    }
-                    IconButton(onClick = onClose) { Icon(Icons.Rounded.KeyboardArrowDown, contentDescription = "收起") }
-                }
-            }
-            Spacer(Modifier.height(4.dp))
-            AnimatedContent(
-                targetState = showLyrics,
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-                transitionSpec = {
-                    (fadeIn(tween(220)) + scaleIn(tween(220), initialScale = .97f)) togetherWith
-                        (fadeOut(tween(150)) + scaleOut(tween(150), targetScale = 1.03f))
-                },
-                label = "唱片歌词切换",
-            ) { lyricsVisible ->
-                if (lyricsVisible) {
-                    LyricsStage(
-                        lyrics = lyrics,
-                        currentLine = currentLine,
-                        listState = lyricListState,
-                        onShowVinyl = { onShowLyricsChange(false) },
-                    )
-                } else {
-                    VinylStage(
-                        trackUri = state.currentTrackUri,
-                        isPlaying = state.isPlaying,
-                        artworkLoader = artworkLoader,
-                        onShowLyrics = { onShowLyricsChange(true) },
-                    )
-                }
-            }
-            Spacer(Modifier.height(16.dp))
-            Text(state.title, style = MaterialTheme.typography.headlineSmall, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                playerSupportingText(state.album, state.artist),
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(12.dp))
-
-            Slider(
-                value = state.positionMs.toFloat().coerceAtMost(state.durationMs.coerceAtLeast(1).toFloat()),
-                onValueChange = { onSeek(it.toLong()) },
-                valueRange = 0f..state.durationMs.coerceAtLeast(1).toFloat(),
-            )
-            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
-                Text(formatDuration(state.positionMs), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                Text(formatDuration(state.durationMs), style = MaterialTheme.typography.labelMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = onPrevious) { Icon(Icons.Rounded.SkipPrevious, "上一首", Modifier.size(34.dp)) }
-                FilledIconButton(onClick = onTogglePlay, modifier = Modifier.size(62.dp), shape = CircleShape) {
-                    Icon(if (state.isPlaying) Icons.Rounded.Pause else Icons.Rounded.PlayArrow, if (state.isPlaying) "暂停" else "播放", Modifier.size(34.dp))
-                }
-                IconButton(onClick = onNext) { Icon(Icons.Rounded.SkipNext, "下一首", Modifier.size(34.dp)) }
-                PlaybackModeButton(mode = state.playbackMode, onClick = onCyclePlaybackMode)
-            }
-        }
-    }
-
-    if (showQueue) {
-        YinlinBottomSheet(title = "接下来播放", onDismiss = { showQueue = false }) {
-            PlaybackQueue(
-                queue = state.queue,
-                currentIndex = state.currentQueueIndex,
-                artworkLoader = artworkLoader,
-                onSelect = { index ->
-                    onSelectQueueItem(state.queue[index].mediaItemIndex)
-                    showQueue = false
-                },
-            )
-        }
-    }
-}
-
-@Composable
-private fun PlaybackQueue(
-    queue: List<QueueItemUiState>,
-    currentIndex: Int,
-    artworkLoader: TrackArtworkLoader,
-    onSelect: (Int) -> Unit,
-) {
-    Column(
-        modifier = Modifier
-            .fillMaxWidth()
-            .fillMaxHeight(.68f)
-            .padding(top = 22.dp),
-    ) {
-        Text(
-            "${queue.size} 首歌曲",
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.bodyMedium,
-            modifier = Modifier.padding(start = 22.dp, top = 4.dp, bottom = 12.dp),
-        )
-        LazyColumn(
-            modifier = Modifier.weight(1f),
-            contentPadding = PaddingValues(bottom = 20.dp),
-        ) {
-            items(queue.size, key = { queue[it].uri }) { index ->
-                val item = queue[index]
-                val isCurrent = index == currentIndex
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable { onSelect(index) }
-                        .padding(horizontal = 18.dp, vertical = 9.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .size(width = 3.dp, height = 34.dp)
-                            .clip(RoundedCornerShape(2.dp))
-                            .background(if (isCurrent) MaterialTheme.colorScheme.primary else Color.Transparent),
-                    )
-                    Spacer(Modifier.size(9.dp))
-                    TrackArtwork(
-                        trackUri = item.uri,
-                        loader = artworkLoader,
-                        modifier = Modifier.size(46.dp),
-                    )
-                    Column(Modifier.weight(1f).padding(horizontal = 12.dp)) {
-                        Text(
-                            item.title,
-                            color = if (isCurrent) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                        Text(
-                            playerSupportingText(item.album, item.artist),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
-                    if (isCurrent) {
-                        Text("当前", color = MaterialTheme.colorScheme.primary, style = MaterialTheme.typography.labelMedium)
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun VinylStage(
-    trackUri: String?,
-    isPlaying: Boolean,
-    artworkLoader: TrackArtworkLoader,
-    onShowLyrics: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    Box(modifier = Modifier.fillMaxSize()) {
-        VinylArtwork(
-            trackUri = trackUri,
-            isPlaying = isPlaying,
-            artworkLoader = artworkLoader,
-            modifier = Modifier
-                .align(Alignment.Center)
-                .clip(CircleShape)
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = null,
-                    onClickLabel = "显示歌词",
-                    onClick = onShowLyrics,
-                ),
-        )
-    }
-}
-
-@Composable
-private fun LyricsStage(
-    lyrics: List<LyricLine>,
-    currentLine: Int,
-    listState: LazyListState,
-    onShowVinyl: () -> Unit,
-) {
-    val interactionSource = remember { MutableInteractionSource() }
-    Column(modifier = Modifier.fillMaxSize()) {
-        if (lyrics.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(24.dp))
-                    .clickable(
-                        interactionSource = interactionSource,
-                        indication = null,
-                        onClickLabel = "返回唱片",
-                        onClick = onShowVinyl,
-                    ),
-                contentAlignment = Alignment.Center,
-            ) {
-                Text(
-                    "没有找到同名 .lrc 或 .lrcx 歌词",
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    textAlign = TextAlign.Center,
-                )
-            }
-        } else {
-            BoxWithConstraints(
-                modifier = Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
-            ) {
-                val focusPadding = maxHeight * ACTIVE_LYRIC_POSITION
-
-                LaunchedEffect(listState, lyrics, currentLine, focusPadding) {
-                    if (currentLine < 0) {
-                        listState.scrollToItem(0)
-                    } else {
-                        // Content padding already positions the line near the viewport center.
-                        listState.animateScrollToItem(currentLine)
-                    }
-                }
-
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .clip(RoundedCornerShape(24.dp))
-                        .clickable(
-                            interactionSource = interactionSource,
-                            indication = null,
-                            onClickLabel = "返回唱片",
-                            onClick = onShowVinyl,
-                        ),
-                    contentPadding = PaddingValues(
-                        top = focusPadding,
-                        bottom = maxHeight - focusPadding,
-                    ),
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                ) {
-                    items(lyrics.size) { index ->
-                        val line = lyrics[index]
-                        Text(
-                            text = line.text.ifBlank { "♪" },
-                            modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Center,
-                            color = if (index == currentLine) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                            fontWeight = if (index == currentLine) FontWeight.Bold else FontWeight.Normal,
-                            style = if (index == currentLine) MaterialTheme.typography.titleLarge else MaterialTheme.typography.bodyLarge,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun VinylArtwork(
-    trackUri: String?,
-    isPlaying: Boolean,
-    artworkLoader: TrackArtworkLoader,
-    modifier: Modifier = Modifier,
-) {
-    val ink = MaterialTheme.colorScheme.onSurface
-    val paper = MaterialTheme.colorScheme.surface
-    val celadon = MaterialTheme.colorScheme.surfaceVariant
-    val firefly = MaterialTheme.colorScheme.primary
-    val artwork = rememberTrackArtwork(trackUri, artworkLoader, 256.dp)
-    val transition = rememberInfiniteTransition(label = "vinyl")
-    val glow by transition.animateFloat(
-        initialValue = .4f,
-        targetValue = if (isPlaying) 1f else .4f,
-        animationSpec = infiniteRepeatable(tween(1200), RepeatMode.Reverse),
-        label = "vinyl glow",
-    )
-    val rotation by transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 360f,
-        animationSpec = infiniteRepeatable(tween(18_000), RepeatMode.Restart),
-        label = "vinyl rotation",
-    )
-    Box(
-        modifier = modifier
-            .size(218.dp)
-            .rotate(if (isPlaying) rotation else 0f)
-            .clip(CircleShape)
-            .background(celadon),
-    ) {
-        if (artwork != null) {
-            Image(
-                bitmap = artwork.asImageBitmap(),
-                contentDescription = "当前歌曲封面",
-                modifier = Modifier.matchParentSize(),
-                contentScale = ContentScale.Crop,
-            )
-        } else {
-            Canvas(Modifier.matchParentSize()) {
-                val radius = size.minDimension / 2
-                drawCircle(celadon, radius)
-                drawCircle(ink.copy(alpha = .22f), radius, style = Stroke(1.dp.toPx()))
-                repeat(5) { ring ->
-                    drawCircle(ink.copy(alpha = .2f), radius * (.48f + ring * .09f), style = Stroke(1.dp.toPx()))
-                }
-                drawCircle(paper, radius * .25f)
-                drawCircle(firefly.copy(alpha = glow), radius * .1f)
-            }
-        }
-        Canvas(Modifier.matchParentSize()) {
-            val radius = size.minDimension / 2
-            drawCircle(ink.copy(alpha = .24f), radius - 1.dp.toPx(), style = Stroke(2.dp.toPx()))
-            drawCircle(paper.copy(alpha = .9f), radius * .035f)
-        }
-    }
-}
-
-@Composable
-private fun PlaybackModeButton(mode: PlaybackMode, onClick: () -> Unit) {
-    val icon = when (mode) {
-        PlaybackMode.SEQUENTIAL -> Icons.AutoMirrored.Rounded.QueueMusic
-        PlaybackMode.REPEAT_ALL -> Icons.Rounded.Repeat
-        PlaybackMode.REPEAT_ONE -> Icons.Rounded.RepeatOne
-        PlaybackMode.SHUFFLE -> Icons.Rounded.Shuffle
-    }
-    val description = when (mode) {
-        PlaybackMode.SEQUENTIAL -> "顺序播放，点击切换为列表循环"
-        PlaybackMode.REPEAT_ALL -> "列表循环，点击切换为单曲循环"
-        PlaybackMode.REPEAT_ONE -> "单曲循环，点击切换为随机播放"
-        PlaybackMode.SHUFFLE -> "随机播放，点击切换为顺序播放"
-    }
-    IconButton(onClick = onClick) {
-        Icon(
-            icon,
-            contentDescription = description,
-            tint = if (mode == PlaybackMode.SEQUENTIAL) {
-                MaterialTheme.colorScheme.onSurface
-            } else {
-                MaterialTheme.colorScheme.primary
-            },
-        )
-    }
-}
-
-private fun formatDuration(durationMs: Long): String {
+internal fun formatDuration(durationMs: Long): String {
     val totalSeconds = durationMs.coerceAtLeast(0) / 1_000
     return "%d:%02d".format(totalSeconds / 60, totalSeconds % 60)
 }
@@ -1668,9 +1287,7 @@ private fun trackSupportingText(track: TrackEntity): String = listOfNotNull(
     formatDuration(track.durationMs),
 ).joinToString("  ·  ")
 
-private fun playerSupportingText(album: String, artist: String): String = listOfNotNull(
+internal fun playerSupportingText(album: String, artist: String): String = listOfNotNull(
     album.takeIf(String::isNotBlank)?.let { "《$it》" },
     artist.takeIf { it.isNotBlank() && it != "未知音乐人" },
 ).joinToString("  ·  ")
-
-private const val ACTIVE_LYRIC_POSITION = .46f

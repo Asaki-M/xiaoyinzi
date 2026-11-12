@@ -14,8 +14,8 @@ android {
         applicationId = "com.xiaoyinzi.player"
         minSdk = 26
         targetSdk = 35
-        versionCode = 20
-        versionName = "1.5.0"
+        versionCode = 21
+        versionName = "1.6.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true
@@ -52,6 +52,7 @@ dependencies {
     implementation("androidx.lifecycle:lifecycle-runtime-compose:2.9.0")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.9.0")
     implementation("androidx.documentfile:documentfile:1.1.0")
+    implementation("androidx.exifinterface:exifinterface:1.4.2")
     implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.8.1")
 
     implementation("androidx.compose.ui:ui")

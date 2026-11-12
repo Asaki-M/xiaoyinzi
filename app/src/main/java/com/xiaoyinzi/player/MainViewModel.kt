@@ -87,6 +87,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val player = PlayerConnection(application)
     val playerState = player.state
     val castState = app.lyricsCastManager.state
+    val themeRepository = app.themeRepository
+    val themeSettings = themeRepository.settings
 
     private val repositorySnapshot = repository.tracks
         .stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
