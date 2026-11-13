@@ -13,7 +13,6 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -513,79 +512,6 @@ internal fun ThemePalette(theme: AppThemeDefinition) {
 }
 
 @Composable
-internal fun ThemeQuickPicker(
-    repository: ThemeRepository,
-    onDismiss: () -> Unit,
-    onManage: () -> Unit,
-) {
-    val settings by repository.settings.collectAsStateWithLifecycle()
-    val scope = rememberCoroutineScope()
-    var error by remember { mutableStateOf<String?>(null) }
-    var applying by remember { mutableStateOf(false) }
-    YinlinBottomSheet(
-        title = "切换主题",
-        onDismiss = onDismiss,
-        header = {
-            ThemePageHeader("切换主题", onBack = onDismiss)
-        },
-    ) {
-        Column(
-            Modifier.heightIn(max = 560.dp)
-                .verticalScroll(rememberScrollState())
-                .padding(horizontal = 22.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            (BuiltInThemes.themes + settings.customThemes).forEach { theme ->
-                Row(
-                    Modifier.fillMaxWidth()
-                        .clickable(enabled = !applying) {
-                            scope.launch {
-                                applying = true
-                                try {
-                                    repository.applyTheme(theme.id)
-                                    onDismiss()
-                                } catch (cancelled: CancellationException) {
-                                    throw cancelled
-                                } catch (failure: Exception) {
-                                    error = failure.localizedMessage ?: "主题应用失败"
-                                } finally {
-                                    applying = false
-                                }
-                            }
-                        }
-                        .padding(vertical = 7.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    XiaoYinZiTheme(theme) {
-                        ThemeArtwork(
-                            ThemeBackgroundSlot.HEADER,
-                            Modifier.size(54.dp).clip(RoundedCornerShape(9.dp)),
-                            blur = 0f,
-                        )
-                    }
-                    Text(
-                        theme.name,
-                        Modifier.weight(1f),
-                        style = MaterialTheme.typography.titleMedium,
-                    )
-                    if (settings.activeTheme == theme)
-                        Icon(Icons.Rounded.Check, "正在使用", tint = LocalAccentText.current)
-                }
-            }
-            error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            OutlinedButton(
-                onClick = onManage,
-                enabled = !applying,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("管理与自定义主题")
-            }
-        }
-    }
-}
-
-@Composable
 private fun ThemePreviewScreen(
     theme: AppThemeDefinition,
     applied: Boolean,
@@ -668,7 +594,6 @@ private fun ThemePreviewScreen(
                             onShowLyricsChange = { lyrics = it },
                             onCyclePlaybackMode = {},
                             onSelectQueueItem = {},
-                            onOpenThemes = {},
                             preview = true,
                         )
                     } else {

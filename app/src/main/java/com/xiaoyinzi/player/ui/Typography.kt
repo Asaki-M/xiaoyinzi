@@ -4,7 +4,17 @@ import androidx.compose.material3.Typography
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.sp
+import com.xiaoyinzi.player.data.LyricsAlignment
+
+internal val LyricsAlignment.textAlign: TextAlign
+    get() =
+        when (this) {
+            LyricsAlignment.LEFT -> TextAlign.Left
+            LyricsAlignment.CENTER -> TextAlign.Center
+            LyricsAlignment.RIGHT -> TextAlign.Right
+        }
 
 val AppTypography = Typography(
     displaySmall = TextStyle(

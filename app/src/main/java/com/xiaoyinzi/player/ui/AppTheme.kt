@@ -1,5 +1,6 @@
 package com.xiaoyinzi.player.ui
 
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
@@ -91,6 +92,7 @@ fun XiaoYinZiTheme(
     CompositionLocalProvider(
         LocalAppTheme provides theme,
         LocalAccentText provides readableAccent(Color(theme.accent), Color(theme.background)),
+        LocalContentColor provides scheme.onBackground,
     ) {
         MaterialTheme(colorScheme = scheme, typography = AppTypography, content = content)
     }

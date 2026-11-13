@@ -55,10 +55,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import com.xiaoyinzi.player.data.AppThemeDefinition
+import com.xiaoyinzi.player.data.LyricsAlignment
 import com.xiaoyinzi.player.data.ThemeBackgroundSlot
 import com.xiaoyinzi.player.data.ThemeImage
 import com.xiaoyinzi.player.data.ThemeImageKind
@@ -149,13 +153,13 @@ internal fun ThemeEditorScreen(
                 enabled = !busy,
                 modifier = Modifier.fillMaxWidth(),
             )
-            ThemeDraftPreview(draft, slot)
+            ThemeDraftPreview(draft, if (tab == 3) ThemeBackgroundSlot.PLAYER else slot)
             ScrollableTabRow(
                 selectedTabIndex = tab,
                 edgePadding = 0.dp,
                 containerColor = Color.Transparent,
             ) {
-                listOf("配色", "背景", "效果").forEachIndexed { index, label ->
+                listOf("配色", "背景", "效果", "歌词").forEachIndexed { index, label ->
                     Tab(selected = tab == index, onClick = { tab = index }, text = { Text(label) })
                 }
             }
@@ -303,6 +307,34 @@ internal fun ThemeEditorScreen(
                         }
                     }
                 }
+                3 -> {
+                    Text("歌词对齐", style = MaterialTheme.typography.titleMedium)
+                    Row(
+                        Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        LyricsAlignment.entries.forEach { alignment ->
+                            FilterChip(
+                                selected = draft.lyricsAlignment == alignment,
+                                onClick = { onChange(draft.copy(lyricsAlignment = alignment)) },
+                                label = {
+                                    Text(
+                                        alignment.title,
+                                        modifier = Modifier.fillMaxWidth(),
+                                        textAlign = TextAlign.Center,
+                                    )
+                                },
+                                enabled = !busy,
+                                modifier = Modifier.weight(1f),
+                            )
+                        }
+                    }
+                    Text(
+                        "随主题保存，应用后生效。",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Spacer(Modifier.height(12.dp))
         }
@@ -366,6 +398,8 @@ internal fun ThemeEditorScreen(
 internal fun ThemeDraftPreview(theme: AppThemeDefinition, slot: ThemeBackgroundSlot) {
     XiaoYinZiTheme(theme) {
         val paper = MaterialTheme.colorScheme.background
+        val lyricsPreview = slot == ThemeBackgroundSlot.PLAYER
+        val textAlign = if (lyricsPreview) theme.lyricsAlignment.textAlign else TextAlign.Start
         Box(
             Modifier.fillMaxWidth().height(182.dp).clip(RoundedCornerShape(16.dp)).background(paper)
         ) {
@@ -379,21 +413,35 @@ internal fun ThemeDraftPreview(theme: AppThemeDefinition, slot: ThemeBackgroundS
                     )
             )
             Column(
-                Modifier.align(Alignment.CenterStart).padding(20.dp),
+                Modifier.align(Alignment.Center).fillMaxWidth().padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    if (slot == ThemeBackgroundSlot.PLAYER) "棠梨煎雪"
+                    if (lyricsPreview) "让旋律留在此刻"
                     else if (slot == ThemeBackgroundSlot.OVERLAY) "新建分组" else "小银子",
-                    style = MaterialTheme.typography.headlineSmall,
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = textAlign,
+                    style =
+                        if (lyricsPreview)
+                            MaterialTheme.typography.bodyLarge.copy(
+                                fontSize = 18.sp,
+                                fontWeight = FontWeight.Bold,
+                            )
+                        else MaterialTheme.typography.headlineSmall,
                     color =
-                        if (slot == ThemeBackgroundSlot.PLAYER) LocalAccentText.current
+                        if (lyricsPreview) LocalAccentText.current
                         else MaterialTheme.colorScheme.onBackground,
                 )
                 Text(
-                    "银临 · 私人曲藏",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onBackground,
+                    if (lyricsPreview) "把这一刻，留给歌声" else "银临 · 私人曲藏",
+                    modifier = Modifier.fillMaxWidth(),
+                    textAlign = textAlign,
+                    style =
+                        if (lyricsPreview) MaterialTheme.typography.bodyLarge
+                        else MaterialTheme.typography.bodyMedium,
+                    color =
+                        if (lyricsPreview) MaterialTheme.colorScheme.onSurfaceVariant
+                        else MaterialTheme.colorScheme.onBackground,
                 )
             }
             Text(

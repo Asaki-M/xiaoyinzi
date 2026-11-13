@@ -136,7 +136,6 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
     var showCastPanel by remember { mutableStateOf(false) }
     var showLibraryActions by remember { mutableStateOf(false) }
     var showThemeManager by rememberSaveable { mutableStateOf(false) }
-    var showThemePicker by rememberSaveable { mutableStateOf(false) }
     val snackbarHost = remember { SnackbarHostState() }
     val artworkLoader = remember {
         TrackArtworkLoader(viewModel.getApplication())
@@ -266,15 +265,6 @@ fun PlayerApp(viewModel: MainViewModel, onImportArchive: () -> Unit) {
             onShowLyricsChange = { showLyrics = it },
             onCyclePlaybackMode = viewModel.player::cyclePlaybackMode,
             onSelectQueueItem = viewModel.player::playQueueItem,
-            onOpenThemes = { showThemePicker = true },
-        )
-    }
-
-    if (showThemePicker) {
-        ThemeQuickPicker(
-            repository = viewModel.themeRepository,
-            onDismiss = { showThemePicker = false },
-            onManage = { showThemePicker = false; showThemeManager = true },
         )
     }
 

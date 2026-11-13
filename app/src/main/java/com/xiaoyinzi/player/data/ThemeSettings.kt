@@ -26,6 +26,13 @@ enum class ThemeBackgroundSlot(val title: String) {
 }
 
 @Serializable
+enum class LyricsAlignment(val title: String) {
+    LEFT("左对齐"),
+    CENTER("居中"),
+    RIGHT("右对齐"),
+}
+
+@Serializable
 data class AppThemeDefinition(
     val id: String,
     val name: String,
@@ -39,6 +46,7 @@ data class AppThemeDefinition(
     val imageMask: Float = .8f,
     val imageBlur: Float = 0f,
     val imageFocus: Float = .5f,
+    val lyricsAlignment: LyricsAlignment = LyricsAlignment.LEFT,
 ) {
     val isPreset: Boolean
         get() = BuiltInThemes.themes.any { it.id == id }

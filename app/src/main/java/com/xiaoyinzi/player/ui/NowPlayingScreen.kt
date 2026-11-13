@@ -40,7 +40,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.rounded.QueueMusic
 import androidx.compose.material.icons.rounded.KeyboardArrowDown
-import androidx.compose.material.icons.rounded.Palette
 import androidx.compose.material.icons.rounded.Pause
 import androidx.compose.material.icons.rounded.PlayArrow
 import androidx.compose.material.icons.rounded.Repeat
@@ -114,7 +113,6 @@ internal fun NowPlayingScreen(
     onShowLyricsChange: (Boolean) -> Unit,
     onCyclePlaybackMode: () -> Unit,
     onSelectQueueItem: (Int) -> Unit,
-    onOpenThemes: () -> Unit,
     preview: Boolean = false,
 ) {
     var showQueue by remember { mutableStateOf(false) }
@@ -160,23 +158,14 @@ internal fun NowPlayingScreen(
                 IconButton(onClick = onClose, enabled = !preview) {
                     Icon(Icons.Rounded.KeyboardArrowDown, "收起播放页")
                 }
-                Column(Modifier.weight(1f), horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(
-                        "小银子 · 正在播放",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(4.dp))
-                    Text(
-                        state.album.ifBlank { "银临 · 私人曲藏" },
-                        style = MaterialTheme.typography.labelMedium,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                IconButton(onClick = onOpenThemes, enabled = !preview) {
-                    Icon(Icons.Rounded.Palette, "切换主题")
-                }
+                Text(
+                    "小银子 · 正在播放",
+                    modifier = Modifier.weight(1f),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    textAlign = TextAlign.Center,
+                )
+                Spacer(Modifier.size(48.dp))
             }
             AnimatedContent(
                 targetState = showLyrics,
@@ -205,17 +194,6 @@ internal fun NowPlayingScreen(
                 }
             }
             Spacer(Modifier.height(if (preview) 8.dp else 16.dp))
-            Text(
-                state.title,
-                style =
-                    MaterialTheme.typography.headlineSmall.copy(
-                        fontSize = if (preview) 24.sp else 30.sp,
-                        lineHeight = if (preview) 30.sp else 38.sp,
-                    ),
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
-            Spacer(Modifier.height(6.dp))
             Text(
                 playerSupportingText(state.album, state.artist),
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -516,6 +494,7 @@ private fun LyricsStage(
     onShowVinyl: () -> Unit,
 ) {
     val interactionSource = remember { MutableInteractionSource() }
+    val lyricsTextAlign = LocalAppTheme.current.lyricsAlignment.textAlign
     Column(modifier = Modifier.fillMaxSize()) {
         if (lyrics.isEmpty()) {
             Box(
@@ -573,14 +552,15 @@ private fun LyricsStage(
                         Text(
                             text = line.text.ifBlank { "♪" },
                             modifier = Modifier.fillMaxWidth(),
-                            textAlign = TextAlign.Start,
+                            textAlign = lyricsTextAlign,
                             color =
                                 if (index == currentLine) LocalAccentText.current
                                 else MaterialTheme.colorScheme.onSurfaceVariant,
                             fontWeight =
                                 if (index == currentLine) FontWeight.Bold else FontWeight.Normal,
                             style =
-                                if (index == currentLine) MaterialTheme.typography.headlineSmall
+                                if (index == currentLine)
+                                    MaterialTheme.typography.bodyLarge.copy(fontSize = 18.sp)
                                 else MaterialTheme.typography.bodyLarge,
                         )
                     }
@@ -662,7 +642,6 @@ private fun PlayerDesignPreview(night: Boolean, lyrics: Boolean) {
             onShowLyricsChange = {},
             onCyclePlaybackMode = {},
             onSelectQueueItem = {},
-            onOpenThemes = {},
             preview = true,
         )
     }
