@@ -1,0 +1,31 @@
+app/src/main/java/com/xiaoyinzi/player/ui/ThemeEditorScreen.kt
+  s_44341663c8b2c2::t_2e074a9f26a4b1 58,61,63,65,156,162,310-337,401-402,416,420,422-430,432,436-444
+app/build.gradle.kts
+  s_44341663c8b2c2::t_90c2b381ae8e88 17-18
+app/src/main/java/com/xiaoyinzi/player/ui/AppTheme.kt
+  s_44341663c8b2c2::t_5c5ff35a377914 3,95
+app/src/main/java/com/xiaoyinzi/player/ui/Typography.kt
+  s_44341663c8b2c2::t_2e074a9f26a4b1 7,9-17
+app/src/main/java/com/xiaoyinzi/player/data/ThemeSettings.kt
+  s_44341663c8b2c2::t_2e074a9f26a4b1 29-34,49
+  s_44341663c8b2c2::t_1159f2af6807ff 28
+app/src/main/java/com/xiaoyinzi/player/ui/NowPlayingScreen.kt
+  s_44341663c8b2c2::t_2e074a9f26a4b1 497,555
+  s_44341663c8b2c2::t_5c5ff35a377914 161-168,562-563
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "1acb35de8576fc24b685b26c71ec231b942cf79d",
+  "prompts": {},
+  "sessions": {
+    "s_44341663c8b2c2": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a1d318-eeb8-7a30-af7f-8c8d3f34cc72",
+        "model": "gpt-6.1-sol"
+      },
+      "human_author": "qinghuan <1041220793@qq.com>"
+    }
+  }
+}
